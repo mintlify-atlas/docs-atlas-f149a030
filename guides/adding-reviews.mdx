@@ -1,0 +1,248 @@
+---
+title: Adding Reviews
+description: Step-by-step guide to adding restaurant and dish reviews to your gastronomy review system
+---
+
+## Overview
+
+This guide walks you through the complete process of adding new reviews to Reseñas Gastronómicas. You'll learn how to fill out the review form, rate dishes, and manage reviewer information.
+
+## Prerequisites
+
+Before adding reviews, ensure:
+- Firebase is properly configured (see [Firebase Setup](/guides/firebase-setup))
+- You have access to the application interface
+- You have photo URLs ready for your dishes
+
+## Adding a New Review
+
+<Steps>
+  <Step title="Open the Add Review Modal">
+    Click the **Add Review** button in the application header. This opens the review form modal.
+
+    The modal is controlled by the `Modal` module in `src/js/modules/modal.js:24`:
+
+    ```javascript
+    toggleAddModal() {
+        const modal = document.getElementById('addModal');
+        if (!modal) return;
+        modal.classList.toggle('hidden');
+        if (!modal.classList.contains('hidden')) {
+            this.resetForm();
+            Dropdown.update();
+        }
+    }
+    ```
+  </Step>
+
+  <Step title="Fill in Basic Information">
+    Enter the essential details for your review:
+
+    ### Restaurant Name
+    Type the restaurant name in the **Restaurant** field. The system includes an autocomplete dropdown that shows previously entered restaurants.
+
+    <Tip>
+    The dropdown automatically updates with existing restaurant names, making it easy to maintain consistency across reviews.
+    </Tip>
+
+    ### Dish Name
+    Enter the specific dish you're reviewing in the **Dish** field.
+
+    ### Photo URL
+    Provide a valid image URL for the dish. The system accepts any publicly accessible image URL.
+
+    <Note>
+    Use high-quality images from services like Unsplash, Imgur, or your own hosting. The URL must be accessible via HTTPS.
+    </Note>
+
+    ### Visit Date (Optional)
+    Select the date you visited the restaurant. If left blank, the system automatically uses the current date.
+
+    ```javascript
+    // From src/js/modules/form.js:34
+    const reviewData = {
+        restaurant: document.getElementById('restaurant').value,
+        dish: document.getElementById('dish').value,
+        photo: document.getElementById('photo').value,
+        date: visitDate ? Utils.formatDate(new Date(visitDate)) : Utils.formatDate(),
+        reviewers: {}
+    };
+    ```
+  </Step>
+
+  <Step title="Add Reviewer Ratings">
+    The application supports dual reviewers: **Gian** and **Yami**. Each can provide independent ratings and reviews.
+
+    ### Enable/Disable Reviewers
+    Use the **Include review** checkbox for each reviewer to toggle their participation. You can have one or both reviewers active.
+
+    ### Set Star Ratings
+    Click on the stars to rate the dish from 1 to 10. The star rating system provides interactive feedback:
+
+    ```javascript
+    // From src/js/modules/starrating.js:10
+    stars.forEach((star, index) => {
+        star.addEventListener('click', () => this.setRating(reviewer, index + 1));
+        star.addEventListener('mouseover', () => this.highlightStars(reviewer, index + 1));
+        star.addEventListener('mouseout', () => this.resetStarHighlight(reviewer));
+    });
+    ```
+
+    - **Hover** over stars to preview the rating
+    - **Click** to set the final rating
+    - The rating displays as **X/10** next to the stars
+
+    <Tip>
+    Ratings are stored independently for each reviewer, allowing different perspectives on the same dish.
+    </Tip>
+
+    ### Write Review Text
+    In the text area below each reviewer's rating, write detailed comments about the dish. Share thoughts on:
+    - Taste and flavor profile
+    - Presentation and portion size
+    - Value for money
+    - Overall experience
+  </Step>
+
+  <Step title="Submit the Review">
+    Click the **Save Review** button to submit. The system provides visual feedback during the save process:
+
+    ```javascript
+    // From src/js/modules/form.js:20-21
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Guardando...';
+    ```
+
+    The review data is structured and saved to Firebase:
+
+    ```javascript
+    // From src/js/modules/form.js:38-50
+    if (gianActive) {
+        reviewData.reviewers.gian = {
+            rating: StarRating.ratings.gian,
+            review: document.getElementById('gianReview').value
+        };
+    }
+
+    if (yamiActive) {
+        reviewData.reviewers.yami = {
+            rating: StarRating.ratings.yami,
+            review: document.getElementById('yamiReview').value
+        };
+    }
+    ```
+
+    <Warning>
+    If Firebase is not properly configured, the review won't be saved. Check the browser console for error messages.
+    </Warning>
+  </Step>
+
+  <Step title="Verify the Review">
+    After successful submission:
+    - The modal automatically closes
+    - Your new review appears in the reviews grid
+    - Statistics update in real-time
+    - The review is immediately synced to Firebase
+
+    The system uses real-time listeners to update the UI:
+
+    ```javascript
+    // From src/js/modules/datastore.js:32-36
+    this.unsubscribe = FirebaseService.onReviewsChange((reviews) => {
+        this.reviews = reviews;
+        // Trigger event to update UI
+        document.dispatchEvent(new CustomEvent('reviewsUpdated'));
+    });
+    ```
+  </Step>
+</Steps>
+
+## Review Data Structure
+
+Each review is stored with the following structure:
+
+```json
+{
+  "id": "unique-firebase-id",
+  "restaurant": "El Emperador",
+  "dish": "Pizza Margherita",
+  "photo": "https://images.unsplash.com/photo-...",
+  "date": "15/09/2025",
+  "timestamp": "Firebase server timestamp",
+  "createdAt": "2025-09-15T10:30:00.000Z",
+  "reviewers": {
+    "gian": {
+      "rating": 9,
+      "review": "¡Increíble! La masa estaba perfecta..."
+    },
+    "yami": {
+      "rating": 8,
+      "review": "Me encantó, aunque le faltó..."
+    }
+  }
+}
+```
+
+## Tips for Better Reviews
+
+<CardGroup cols={2}>
+  <Card title="Consistent Naming" icon="signature">
+    Use consistent restaurant names to enable proper filtering. The autocomplete helps maintain this consistency.
+  </Card>
+  
+  <Card title="Quality Photos" icon="camera">
+    Use high-resolution images that clearly show the dish. Good lighting and composition enhance the review.
+  </Card>
+  
+  <Card title="Detailed Feedback" icon="pen">
+    Write specific, helpful reviews. Mention ingredients, cooking methods, and unique flavors.
+  </Card>
+  
+  <Card title="Honest Ratings" icon="star">
+    Use the full 1-10 scale. Reserve 10s for exceptional experiences and be honest about disappointing dishes.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### Form Won't Submit
+
+**Problem**: Clicking save does nothing or shows an error.
+
+**Solutions**:
+- Ensure all required fields are filled (restaurant, dish, photo)
+- Verify at least one reviewer has a rating greater than 0
+- Check browser console for JavaScript errors
+- Confirm Firebase is properly initialized
+
+### Photos Don't Load
+
+**Problem**: Image URLs don't display in the review card.
+
+**Solutions**:
+- Verify the URL is publicly accessible
+- Use direct image URLs, not page links
+- Ensure the URL uses HTTPS protocol
+- Test the URL in a separate browser tab
+
+### Ratings Not Saving
+
+**Problem**: Star ratings reset after clicking save.
+
+**Solutions**:
+- Click stars before submitting the form
+- Ensure the reviewer checkbox is checked
+- Check that the StarRating module is initialized
+- Verify no JavaScript errors in console
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Search Reviews" icon="search" href="/guides/searching-reviews">
+    Learn how to find and filter your saved reviews
+  </Card>
+  
+  <Card title="Firebase Setup" icon="database" href="/guides/firebase-setup">
+    Configure Firebase for persistent data storage
+  </Card>
+</CardGroup>

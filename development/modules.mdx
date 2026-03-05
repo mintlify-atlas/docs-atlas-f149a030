@@ -1,0 +1,768 @@
+---
+title: Module Overview
+description: Detailed overview of all application modules, their responsibilities, dependencies, and public APIs
+---
+
+## Module Architecture
+
+Reseñas Gastronómicas is built using a **modular architecture** where each module has a specific responsibility. Modules communicate through well-defined interfaces and custom events.
+
+## Module Categories
+
+### Data Layer
+- **DataStore**: Central data management
+- **FirebaseService**: Database integration
+
+### UI Layer
+- **UI**: Main rendering engine
+- **Modal**: Dialog management
+- **Form**: Form handling
+- **StarRating**: Rating widget
+- **Dropdown**: Autocomplete component
+
+### Feature Layer
+- **Search**: Text search functionality
+- **Filters**: Restaurant filtering
+- **Stats**: Statistics and analytics
+
+### Utility Layer
+- **Utils**: Shared utility functions
+
+## Data Layer Modules
+
+### DataStore Module
+
+**File**: `src/js/modules/datastore.js`
+
+**Responsibility**: Central data repository and state management for all review data.
+
+#### Public API
+
+```javascript
+export const DataStore = {
+    // Properties
+    reviews: [],           // Array of all reviews
+    isLoading: false,      // Loading state indicator
+    unsubscribe: null,     // Firestore listener cleanup function
+    
+    // Methods
+    async init(),                          // Initialize DataStore and Firebase
+    async loadReviews(),                   // Load reviews from Firestore
+    setupRealTimeListener(),               // Setup real-time sync
+    async addReview(review),               // Add new review
+    async updateReview(id, review),        // Update existing review
+    async deleteReview(id),                // Delete review
+    getReviews(filter = 'all'),           // Get filtered reviews
+    getRestaurants(),                      // Get unique restaurant list
+    searchReviews(query),                  // Search reviews by text
+    loadSampleData(),                      // Load fallback data
+    destroy()                              // Cleanup listeners
+};
+```
+
+#### Key Features
+
+**Real-time Synchronization**:
+```javascript
+setupRealTimeListener() {
+    if (this.unsubscribe) {
+        this.unsubscribe();
+    }
+    
+    this.unsubscribe = FirebaseService.onReviewsChange((reviews) => {
+        this.reviews = reviews;
+        // Notify all components of data change
+        document.dispatchEvent(new CustomEvent('reviewsUpdated'));
+    });
+}
+```
+From `src/js/modules/datastore.js:26-37`
+
+**Graceful Fallback**:
+```javascript
+async loadReviews() {
+    this.isLoading = true;
+    try {
+        this.reviews = await FirebaseService.getReviews();
+    } catch (error) {
+        console.error('Error cargando reseñas:', error);
+        // Load sample data if Firebase fails
+        this.loadSampleData();
+    }
+    this.isLoading = false;
+}
+```
+From `src/js/modules/datastore.js:14-24`
+
+#### Dependencies
+- **FirebaseService**: For database operations
+
+#### Events Published
+- `reviewsUpdated`: Dispatched when review data changes
+
+---
+
+### FirebaseService Module
+
+**File**: `src/js/components/firebase.js`
+
+**Responsibility**: Abstraction layer for all Firebase/Firestore operations.
+
+#### Public API
+
+```javascript
+export const FirebaseService = {
+    // Properties
+    db: null,  // Firestore database instance
+    
+    // Methods
+    init(),                                   // Initialize Firestore
+    async getReviews(),                       // Fetch all reviews
+    async addReview(review),                  // Create new review
+    async updateReview(id, review),           // Update review
+    async deleteReview(id),                   // Delete review
+    onReviewsChange(callback)                 // Real-time listener
+};
+```
+
+#### Key Features
+
+**CRUD Operations**:
+```javascript
+async addReview(review) {
+    try {
+        const reviewWithTimestamp = {
+            ...review,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: new Date().toISOString()
+        };
+        
+        const docRef = await this.db.collection('reviews').add(reviewWithTimestamp);
+        return { id: docRef.id, ...reviewWithTimestamp };
+    } catch (error) {
+        console.error('Error agregando reseña:', error);
+        throw error;
+    }
+}
+```
+From `src/js/components/firebase.js:24-38`
+
+**Real-time Listener**:
+```javascript
+onReviewsChange(callback) {
+    return this.db.collection('reviews')
+        .orderBy('timestamp', 'desc')
+        .onSnapshot(snapshot => {
+            const reviews = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            callback(reviews);
+        });
+}
+```
+From `src/js/components/firebase.js:68-78`
+
+#### Dependencies
+- **Firebase SDK**: Global `firebase` object
+- **firebase-config.js**: Configuration file
+
+---
+
+## UI Layer Modules
+
+### UI Module
+
+**File**: `src/js/modules/ui.js`
+
+**Responsibility**: Main rendering engine for the review grid and card components.
+
+#### Public API
+
+```javascript
+export const UI = {
+    async init(),          // Initialize UI and dependencies
+    renderReviews()        // Render review cards
+};
+```
+
+#### Key Features
+
+**Initialization Sequence**:
+```javascript
+async init() {
+    await DataStore.init();
+    this.renderReviews();
+    Filters.init();
+    Stats.init();
+    Search.init();
+    
+    // Listen for real-time updates
+    document.addEventListener('reviewsUpdated', () => {
+        this.renderReviews();
+        Filters.update();
+        Stats.update();
+    });
+}
+```
+From `src/js/modules/ui.js:9-22`
+
+**Dynamic Rendering**:
+```javascript
+renderReviews() {
+    const grid = document.getElementById('reviewsGrid');
+    if (!grid) return;
+    
+    let reviews = DataStore.reviews;
+    
+    // Apply search filter
+    if (Search.currentQuery) {
+        reviews = DataStore.searchReviews(Search.currentQuery);
+    }
+    
+    // Apply restaurant filter
+    if (Filters.currentFilter !== 'all') {
+        reviews = reviews.filter(r => r.restaurant === Filters.currentFilter);
+    }
+    
+    // Render cards...
+}
+```
+From `src/js/modules/ui.js:24-53`
+
+#### Dependencies
+- **DataStore**: Data access
+- **Filters**: Filter state
+- **Stats**: Statistics updates
+- **Search**: Search state
+- **Modal**: Review details
+- **Utils**: Helper functions
+
+#### Events Subscribed
+- `reviewsUpdated`: Triggers re-render
+
+---
+
+### Modal Module
+
+**File**: `src/js/modules/modal.js`
+
+**Responsibility**: Manages all modal dialogs (add/edit review, review details, confirmations).
+
+#### Public API
+
+```javascript
+export const Modal = {
+    init(),                           // Initialize modal event handlers
+    toggleAddModal(),                 // Show/hide add review modal
+    toggleDetailModal(),              // Show/hide detail modal
+    resetForm(),                      // Reset add/edit form
+    openEditModal(review),            // Open modal in edit mode
+    showReviewDetail(review),         // Display review details
+    generateStarIcons(rating),        // Generate star icons
+    confirmDelete(review),            // Show delete confirmation
+    showDeleteConfirmation(review),   // Delete confirmation dialog
+    async deleteReview(id),           // Delete review handler
+    showNotification(message, type)   // Toast notification
+};
+```
+
+#### Key Features
+
+**Edit Mode**:
+```javascript
+openEditModal(review) {
+    const modal = document.getElementById('addModal');
+    const modalTitle = modal.querySelector('h2');
+    const submitBtn = modal.querySelector('button[type="submit"]');
+    
+    // Change UI for editing
+    modalTitle.innerHTML = '<i class="fas fa-edit mr-2"></i>Editar Reseña';
+    submitBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Actualizar Reseña';
+    
+    // Populate form with existing data
+    document.getElementById('restaurant').value = review.restaurant;
+    document.getElementById('dish').value = review.dish;
+    // ... more fields
+    
+    // Mark form as editing
+    const form = document.getElementById('reviewForm');
+    form.dataset.editId = review.id;
+    
+    modal.classList.remove('hidden');
+}
+```
+From `src/js/modules/modal.js:65-114`
+
+**Rich Detail View**:
+```javascript
+showReviewDetail(review) {
+    const avgRating = Utils.calculateAverageRating(review);
+    
+    content.innerHTML = `
+        <div class="relative">
+            <!-- Hero image with overlay -->
+            <div class="relative h-64 md:h-80 overflow-hidden">
+                <img src="${review.photo}" class="w-full h-full object-cover">
+                <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                
+                <!-- Restaurant name and rating -->
+                <div class="absolute bottom-6 left-6 text-white">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-2">
+                        ${Utils.escapeHtml(review.restaurant)}
+                    </h2>
+                    <!-- ... -->
+                </div>
+            </div>
+            <!-- Review cards -->
+        </div>
+    `;
+}
+```
+From `src/js/modules/modal.js:195-288`
+
+#### Dependencies
+- **StarRating**: Rating widget integration
+- **Dropdown**: Restaurant autocomplete
+- **Utils**: Escape HTML and calculations
+- **DataStore**: Delete operations
+
+---
+
+### Form Module
+
+**File**: `src/js/modules/form.js`
+
+**Responsibility**: Handles form submission, validation, and data collection.
+
+#### Public API
+
+```javascript
+export const Form = {
+    init(),                      // Setup form handlers
+    async handleSubmit(e)        // Process form submission
+};
+```
+
+#### Key Features
+
+**Create and Update Logic**:
+```javascript
+async handleSubmit(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
+    // Show loading state
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Guardando...';
+    
+    try {
+        const isEditing = form.dataset.editId;
+        const reviewData = {
+            restaurant: document.getElementById('restaurant').value,
+            dish: document.getElementById('dish').value,
+            photo: document.getElementById('photo').value,
+            date: Utils.formatDate(new Date(visitDate)),
+            reviewers: {
+                gian: { rating: StarRating.ratings.gian, review: ... },
+                yami: { rating: StarRating.ratings.yami, review: ... }
+            }
+        };
+        
+        if (isEditing) {
+            await DataStore.updateReview(isEditing, reviewData);
+        } else {
+            await DataStore.addReview(reviewData);
+        }
+        
+        Modal.toggleAddModal();
+    } catch (error) {
+        alert('Error al guardar la reseña. Por favor, intenta de nuevo.');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    }
+}
+```
+From `src/js/modules/form.js:12-68`
+
+#### Dependencies
+- **StarRating**: Rating values
+- **DataStore**: Save operations
+- **Utils**: Date formatting
+- **Modal**: Close modal after save
+
+---
+
+### StarRating Module
+
+**File**: `src/js/modules/starrating.js`
+
+**Responsibility**: Interactive 10-star rating component for two reviewers.
+
+#### Public API
+
+```javascript
+export const StarRating = {
+    ratings: { gian: 0, yami: 0 },     // Current ratings
+    
+    init(),                             // Setup event listeners
+    setRating(reviewer, rating),        // Set rating value
+    highlightStars(reviewer, rating),   // Hover effect
+    resetStarHighlight(reviewer),       // Remove hover
+    updateStarDisplay(reviewer, rating), // Update visual state
+    reset()                             // Clear all ratings
+};
+```
+
+#### Key Features
+
+```javascript
+init() {
+    document.querySelectorAll('.star-rating').forEach(rating => {
+        const reviewer = rating.dataset.reviewer;
+        const stars = rating.querySelectorAll('.star');
+        
+        stars.forEach((star, index) => {
+            star.addEventListener('click', () => this.setRating(reviewer, index + 1));
+            star.addEventListener('mouseover', () => this.highlightStars(reviewer, index + 1));
+            star.addEventListener('mouseout', () => this.resetStarHighlight(reviewer));
+        });
+    });
+}
+```
+From `src/js/modules/starrating.js:4-15`
+
+#### Dependencies
+- None (standalone component)
+
+---
+
+### Dropdown Module
+
+**File**: `src/js/modules/dropdown.js`
+
+**Responsibility**: Autocomplete dropdown for restaurant selection.
+
+#### Public API
+
+```javascript
+export const Dropdown = {
+    init(),                          // Setup event listeners
+    handleInput(),                   // Process user input
+    show(),                          // Display dropdown
+    hide(),                          // Hide dropdown
+    update(),                        // Refresh restaurant list
+    showAllRestaurants(),            // Show all options
+    filterRestaurants(searchValue)   // Filter by search term
+};
+```
+
+#### Key Features
+
+**Dynamic Filtering**:
+```javascript
+filterRestaurants(searchValue) {
+    const restaurants = DataStore.getRestaurants();
+    const filtered = restaurants.filter(restaurant =>
+        restaurant.toLowerCase().includes(searchValue)
+    );
+    
+    const dropdown = document.getElementById('restaurantDropdown');
+    
+    if (filtered.length === 0) {
+        dropdown.innerHTML = '<div class="dropdown-item text-gray-500 text-center">No se encontraron restaurantes</div>';
+        return;
+    }
+    
+    dropdown.innerHTML = filtered.map(restaurant =>
+        `<div class="dropdown-item" data-restaurant="${Utils.escapeHtml(restaurant)}">
+            <i class="fas fa-store mr-2 text-gray-500"></i>
+            <span>${Utils.escapeHtml(restaurant)}</span>
+        </div>`
+    ).join('');
+}
+```
+From `src/js/modules/dropdown.js:69-89`
+
+#### Dependencies
+- **DataStore**: Restaurant list
+- **Utils**: HTML escaping
+
+---
+
+## Feature Layer Modules
+
+### Search Module
+
+**File**: `src/js/modules/search.js`
+
+**Responsibility**: Full-text search across reviews.
+
+#### Public API
+
+```javascript
+export const Search = {
+    currentQuery: '',          // Current search term
+    
+    init(),                    // Setup search input
+    handleSearch(query),       // Process search
+    clearSearch()              // Clear search and reset
+};
+```
+
+#### Key Features
+
+```javascript
+handleSearch(query) {
+    this.currentQuery = query.trim();
+    const clearBtn = document.getElementById('clearSearch');
+    
+    if (this.currentQuery) {
+        clearBtn.classList.remove('hidden');
+    } else {
+        clearBtn.classList.add('hidden');
+    }
+    
+    UI.renderReviews();  // Trigger re-render with search filter
+}
+```
+From `src/js/modules/search.js:14-25`
+
+#### Dependencies
+- **UI**: Trigger re-render
+
+---
+
+### Filters Module
+
+**File**: `src/js/modules/filters.js`
+
+**Responsibility**: Filter reviews by restaurant.
+
+#### Public API
+
+```javascript
+export const Filters = {
+    currentFilter: 'all',           // Current filter
+    
+    init(),                         // Initialize filters
+    update(),                       // Rebuild filter buttons
+    filterByRestaurant(restaurant)  // Apply filter
+};
+```
+
+#### Key Features
+
+```javascript
+update() {
+    const restaurants = DataStore.getRestaurants();
+    const filtersContainer = document.getElementById('restaurantFilters');
+    
+    filtersContainer.innerHTML = restaurants.map(restaurant =>
+        `<button data-filter="${Utils.escapeHtml(restaurant)}" 
+                 class="filter-btn px-4 py-2 rounded-full text-sm font-medium transition-all duration-200">
+            ${Utils.escapeHtml(restaurant)}
+        </button>`
+    ).join('');
+    
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => this.filterByRestaurant(e.target.dataset.filter));
+    });
+}
+```
+From `src/js/modules/filters.js:12-27`
+
+#### Dependencies
+- **DataStore**: Restaurant list
+- **Utils**: HTML escaping
+- **UI**: Trigger re-render
+
+---
+
+### Stats Module
+
+**File**: `src/js/modules/stats.js`
+
+**Responsibility**: Calculate and display statistics (best dish, worst dish, recent highlights).
+
+#### Public API
+
+```javascript
+export const Stats = {
+    init(),                       // Initialize stats
+    update(),                     // Recalculate and render
+    getBestDish(reviews),         // Find highest rated
+    getWorstDish(reviews),        // Find lowest rated
+    getRecentBest(reviews),       // Best in last 30 days
+    getOverallAverage(reviews)    // Calculate average rating
+};
+```
+
+#### Key Features
+
+**Statistical Calculations**:
+```javascript
+getBestDish(reviews) {
+    return reviews.reduce((best, review) => {
+        const avgRating = parseFloat(Utils.calculateAverageRating(review));
+        const bestRating = parseFloat(Utils.calculateAverageRating(best));
+        return avgRating > bestRating ? review : best;
+    });
+}
+
+getOverallAverage(reviews) {
+    const allRatings = reviews.flatMap(review =>
+        Object.values(review.reviewers).map(r => r.rating)
+    );
+    const sum = allRatings.reduce((a, b) => a + b, 0);
+    return (sum / allRatings.length).toFixed(1);
+}
+```
+From `src/js/modules/stats.js:86-126`
+
+#### Dependencies
+- **DataStore**: Review data
+- **Utils**: Average calculation and date parsing
+
+---
+
+## Utility Layer Modules
+
+### Utils Module
+
+**File**: `src/js/modules/utils.js`
+
+**Responsibility**: Shared utility functions used across the application.
+
+#### Public API
+
+```javascript
+export const Utils = {
+    calculateAverageRating(review),   // Calculate average rating from reviewers
+    formatDate(date),                 // Format date to DD/MM/YYYY
+    escapeHtml(text),                 // Prevent XSS attacks
+    parseDate(dateString)             // Parse DD/MM/YYYY to Date object
+};
+```
+
+#### Key Features
+
+**XSS Prevention**:
+```javascript
+escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+```
+From `src/js/modules/utils.js:13-17`
+
+**Date Handling**:
+```javascript
+formatDate(date) {
+    const d = date ? new Date(date) : new Date();
+    return d.toLocaleDateString('es-ES');
+}
+
+parseDate(dateString) {
+    const parts = dateString.split('/');
+    return new Date(parts[2], parts[1] - 1, parts[0]);
+}
+```
+From `src/js/modules/utils.js:8-22`
+
+#### Dependencies
+- None (pure utility functions)
+
+---
+
+## Module Dependency Graph
+
+```
+App (app.js)
+  ├── UI
+  │   ├── DataStore
+  │   │   └── FirebaseService
+  │   ├── Filters
+  │   │   ├── DataStore
+  │   │   ├── Utils
+  │   │   └── UI
+  │   ├── Stats
+  │   │   ├── DataStore
+  │   │   └── Utils
+  │   ├── Search
+  │   │   └── UI
+  │   ├── Modal
+  │   │   ├── StarRating
+  │   │   ├── Dropdown
+  │   │   ├── Utils
+  │   │   └── DataStore
+  │   └── Utils
+  ├── StarRating (standalone)
+  ├── Dropdown
+  │   ├── DataStore
+  │   └── Utils
+  ├── Modal (see above)
+  ├── Form
+  │   ├── StarRating
+  │   ├── DataStore
+  │   ├── Utils
+  │   └── Modal
+  ├── Search (see above)
+  └── Stats (see above)
+```
+
+## Inter-Module Communication
+
+### Method 1: Direct Imports
+
+Modules import and call methods directly:
+
+```javascript
+import { DataStore } from './datastore.js';
+
+const reviews = DataStore.getReviews();
+```
+
+### Method 2: Custom Events
+
+Modules broadcast state changes:
+
+```javascript
+// Publisher
+document.dispatchEvent(new CustomEvent('reviewsUpdated'));
+
+// Subscriber
+document.addEventListener('reviewsUpdated', () => {
+    this.renderReviews();
+});
+```
+
+### Method 3: Shared State
+
+Modules read shared state properties:
+
+```javascript
+if (Search.currentQuery) {
+    reviews = DataStore.searchReviews(Search.currentQuery);
+}
+```
+
+## Best Practices
+
+1. **Single Responsibility**: Each module handles one concern
+2. **Minimal Dependencies**: Modules only import what they need
+3. **Event-Driven Updates**: Use events for loose coupling
+4. **Immutable Operations**: Don't mutate imported state directly
+5. **Error Handling**: Always wrap async operations in try-catch
+6. **XSS Prevention**: Always escape user input with `Utils.escapeHtml()`
+
+## Next Steps
+
+- Review [Application Architecture](/development/architecture) for high-level design
+- Explore [Firebase Integration](/development/firebase-integration) for database details
+- Check individual API references for detailed method documentation

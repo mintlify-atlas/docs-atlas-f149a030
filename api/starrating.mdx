@@ -1,0 +1,399 @@
+---
+title: 'StarRating'
+description: 'Interactive star rating component for reviewer score input (0-10 scale)'
+---
+
+## Overview
+
+The StarRating module provides an interactive 10-star rating system for reviewers. It handles click and hover interactions, maintains rating state, and provides visual feedback through CSS classes.
+
+## Module Structure
+
+<ParamField path="ratings" type="object">
+  Current ratings for each reviewer
+  
+  ```javascript
+  {
+    gian: 0,
+    yami: 0
+  }
+  ```
+</ParamField>
+
+## Methods
+
+### init()
+
+Initializes all star rating components on the page.
+
+```javascript
+StarRating.init();
+```
+
+**Behavior:**
+- Finds all `.star-rating` elements
+- Sets up click, mouseover, and mouseout handlers for each star
+- Binds to reviewer via `data-reviewer` attribute
+
+**HTML Structure Required:**
+```html
+<div class="star-rating" data-reviewer="gian">
+  <span class="star">☆</span>
+  <span class="star">☆</span>
+  <span class="star">☆</span>
+  <!-- ... 10 stars total -->
+</div>
+<span id="gianRating">0/10</span>
+```
+
+**Example:**
+```javascript
+import { StarRating } from './modules/starrating.js';
+
+// Initialize after DOM is ready
+StarRating.init();
+```
+
+---
+
+### setRating(reviewer, rating)
+
+Sets the rating for a specific reviewer.
+
+```javascript
+StarRating.setRating('gian', 8);
+```
+
+<ParamField path="reviewer" type="string" required>
+  Reviewer identifier ('gian' or 'yami')
+</ParamField>
+
+<ParamField path="rating" type="number" required>
+  Rating value (automatically clamped to 0-10)
+</ParamField>
+
+**Behavior:**
+- Clamps rating between 0 and 10
+- Updates internal `ratings` object
+- Updates rating display text (e.g., "8/10")
+- Updates star visual display
+
+**Rating Bounds:**
+```javascript
+rating = Math.max(0, Math.min(rating, 10));
+```
+
+**Example:**
+```javascript
+// Set Gian's rating to 9
+StarRating.setRating('gian', 9);
+
+// Set Yami's rating to 7
+StarRating.setRating('yami', 7);
+
+// Out of bounds values are clamped
+StarRating.setRating('gian', 15);  // Sets to 10
+StarRating.setRating('yami', -5);  // Sets to 0
+```
+
+---
+
+### highlightStars(reviewer, rating)
+
+Temporarily highlights stars on hover.
+
+```javascript
+StarRating.highlightStars('gian', 6);
+```
+
+<ParamField path="reviewer" type="string" required>
+  Reviewer identifier
+</ParamField>
+
+<ParamField path="rating" type="number" required>
+  Number of stars to highlight
+</ParamField>
+
+**CSS Classes Applied:**
+- `star-filled`: Applied to stars below the rating
+- `star-empty`: Applied to stars at or above the rating
+
+**Example:**
+```javascript
+// Highlight first 6 stars
+StarRating.highlightStars('gian', 6);
+// Stars 1-6: star-filled
+// Stars 7-10: star-empty
+```
+
+---
+
+### resetStarHighlight(reviewer)
+
+Resets star highlighting to the current saved rating.
+
+```javascript
+StarRating.resetStarHighlight('gian');
+```
+
+<ParamField path="reviewer" type="string" required>
+  Reviewer identifier
+</ParamField>
+
+**Behavior:**
+- Called on `mouseout` event
+- Restores stars to reflect `this.ratings[reviewer]`
+
+**Example:**
+```javascript
+// User hovers away - reset to saved rating
+StarRating.resetStarHighlight('yami');
+```
+
+---
+
+### updateStarDisplay(reviewer, rating)
+
+Updates the visual star display.
+
+```javascript
+StarRating.updateStarDisplay('gian', 7);
+```
+
+<ParamField path="reviewer" type="string" required>
+  Reviewer identifier
+</ParamField>
+
+<ParamField path="rating" type="number" required>
+  Rating to display (0-10)
+</ParamField>
+
+**Behavior:**
+- Finds all stars for the reviewer
+- Applies `star-filled` to stars < rating
+- Applies `star-empty` to stars >= rating
+
+**CSS Class Logic:**
+```javascript
+stars.forEach((star, index) => {
+  star.classList.toggle('star-filled', index < rating);
+  star.classList.toggle('star-empty', index >= rating);
+});
+```
+
+**Example:**
+```javascript
+StarRating.updateStarDisplay('gian', 5);
+// Stars 0-4: filled
+// Stars 5-9: empty
+```
+
+---
+
+### reset()
+
+Resets all ratings to 0.
+
+```javascript
+StarRating.reset();
+```
+
+**Behavior:**
+- Sets `ratings.gian` and `ratings.yami` to 0
+- Updates rating text displays to "0/10"
+- Clears all star highlights
+
+**Example:**
+```javascript
+// Reset form
+StarRating.reset();
+console.log(StarRating.ratings); // { gian: 0, yami: 0 }
+```
+
+## Event Handlers
+
+### Click Event
+
+```javascript
+star.addEventListener('click', () => this.setRating(reviewer, index + 1));
+```
+
+**Behavior:**
+- Clicks on star at index N sets rating to N+1
+- Updates rating display
+- Persists the rating
+
+### Mouseover Event
+
+```javascript
+star.addEventListener('mouseover', () => this.highlightStars(reviewer, index + 1));
+```
+
+**Behavior:**
+- Highlights stars up to hovered position
+- Provides visual preview of rating
+
+### Mouseout Event
+
+```javascript
+star.addEventListener('mouseout', () => this.resetStarHighlight(reviewer));
+```
+
+**Behavior:**
+- Restores display to saved rating
+- Removes preview highlighting
+
+## CSS Classes
+
+### Required Classes
+
+<ParamField path="star-filled" type="CSS class">
+  Applied to filled/active stars
+  
+  ```css
+  .star-filled {
+    color: #fbbf24; /* Amber color */
+  }
+  ```
+</ParamField>
+
+<ParamField path="star-empty" type="CSS class">
+  Applied to empty/inactive stars
+  
+  ```css
+  .star-empty {
+    color: #d1d5db; /* Gray color */
+  }
+  ```
+</ParamField>
+
+## HTML Structure
+
+### Complete Example
+
+```html
+<!-- Gian's Rating -->
+<div class="reviewer-section">
+  <label>Gian's Review</label>
+  
+  <!-- Star Rating Component -->
+  <div class="star-rating" data-reviewer="gian">
+    <span class="star star-empty">☆</span>
+    <span class="star star-empty">☆</span>
+    <span class="star star-empty">☆</span>
+    <span class="star star-empty">☆</span>
+    <span class="star star-empty">☆</span>
+    <span class="star star-empty">☆</span>
+    <span class="star star-empty">☆</span>
+    <span class="star star-empty">☆</span>
+    <span class="star star-empty">☆</span>
+    <span class="star star-empty">☆</span>
+  </div>
+  
+  <!-- Rating Display -->
+  <span id="gianRating" class="rating-text">0/10</span>
+  
+  <textarea id="gianReview" placeholder="Write review..."></textarea>
+</div>
+
+<!-- Yami's Rating -->
+<div class="reviewer-section">
+  <label>Yami's Review</label>
+  
+  <div class="star-rating" data-reviewer="yami">
+    <!-- 10 stars -->
+  </div>
+  
+  <span id="yamiRating" class="rating-text">0/10</span>
+  
+  <textarea id="yamiReview" placeholder="Write review..."></textarea>
+</div>
+```
+
+## Reading Ratings
+
+### Get Current Ratings
+
+```javascript
+// Get Gian's rating
+const gianRating = StarRating.ratings.gian;
+
+// Get Yami's rating
+const yamiRating = StarRating.ratings.yami;
+
+// Get all ratings
+const allRatings = { ...StarRating.ratings };
+console.log(allRatings); // { gian: 8, yami: 7 }
+```
+
+## Integration with Forms
+
+### Form Submission Example
+
+```javascript
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  
+  const reviewData = {
+    restaurant: document.getElementById('restaurant').value,
+    dish: document.getElementById('dish').value,
+    reviewers: {
+      gian: {
+        rating: StarRating.ratings.gian,
+        review: document.getElementById('gianReview').value
+      },
+      yami: {
+        rating: StarRating.ratings.yami,
+        review: document.getElementById('yamiReview').value
+      }
+    }
+  };
+  
+  // Submit review
+  await DataStore.addReview(reviewData);
+  
+  // Reset form
+  StarRating.reset();
+});
+```
+
+## Complete Usage Example
+
+```javascript
+import { StarRating } from './modules/starrating.js';
+
+// Initialize star ratings
+StarRating.init();
+
+// Programmatically set ratings (e.g., when editing)
+StarRating.setRating('gian', 9);
+StarRating.setRating('yami', 8);
+
+// Read current ratings
+console.log('Gian:', StarRating.ratings.gian);
+console.log('Yami:', StarRating.ratings.yami);
+
+// Reset when clearing form
+StarRating.reset();
+```
+
+## Accessibility Notes
+
+For improved accessibility, consider adding:
+
+```html
+<div class="star-rating" 
+     data-reviewer="gian" 
+     role="slider" 
+     aria-label="Rating" 
+     aria-valuemin="0" 
+     aria-valuemax="10" 
+     aria-valuenow="0"
+     tabindex="0">
+  <!-- stars -->
+</div>
+```
+
+## Source Code
+
+Source: `workspace/source/src/js/modules/starrating.js:1`

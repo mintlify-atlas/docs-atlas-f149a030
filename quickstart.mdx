@@ -1,80 +1,335 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Get Reseñas Gastronómicas up and running in minutes
 ---
 
-## Get started in three steps
+# Quick Start Guide
 
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+Get Reseñas Gastronómicas running on your local machine in just a few minutes. This guide will walk you through the essential steps to start tracking your culinary adventures.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+This quick start guide assumes you have basic familiarity with the command line and Node.js. For more detailed instructions, see the [Installation Guide](/installation).
 </Note>
+
+## Prerequisites
+
+Before you begin, make sure you have:
+
+- **Node.js** (version 14 or higher)
+- **npm** (comes with Node.js)
+- A **Firebase account** (free tier works perfectly)
+- A modern web browser
+
+<Steps>
+
+### Clone or Download the Repository
+
+Get the source code on your local machine:
+
+```bash
+# If using git
+git clone <your-repository-url>
+cd resenas-gastronomicas
+
+# Or download and extract the ZIP file
+```
+
+### Install Dependencies
+
+Install the required npm packages:
+
+```bash
+npm install
+```
+
+This will install:
+- `dotenv` - For environment variable management
+
+<Tip>
+The application uses minimal dependencies and relies primarily on CDN-delivered libraries (Firebase, Tailwind CSS, Font Awesome) for a lighter footprint.
+</Tip>
+
+### Set Up Firebase
+
+Create and configure your Firebase project:
+
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Click **Add Project** and follow the setup wizard
+3. Once created, click the **Web** icon (`</>`) to add a web app
+4. Register your app with a nickname (e.g., "Reseñas Gastronómicas")
+5. Copy the Firebase configuration object
+
+### Configure Firebase Credentials
+
+Create a Firebase configuration file:
+
+```bash
+mkdir -p src/js/data
+```
+
+Create `src/js/data/firebase-config.js` with your Firebase credentials:
+
+```javascript
+// src/js/data/firebase-config.js
+export const firebaseConfig = {
+  apiKey: "your-api-key",
+  authDomain: "your-project-id.firebaseapp.com",
+  projectId: "your-project-id",
+  storageBucket: "your-project-id.appspot.com",
+  messagingSenderId: "your-sender-id",
+  appId: "your-app-id"
+};
+```
+
+<Warning>
+Replace the placeholder values with your actual Firebase configuration. Keep this file secure and never commit it to public repositories.
+</Warning>
+
+### Enable Firestore Database
+
+In the Firebase Console:
+
+1. Navigate to **Firestore Database** in the left sidebar
+2. Click **Create Database**
+3. Choose **Start in test mode** (for development)
+4. Select a location for your database
+5. Click **Enable**
+
+<Note>
+Test mode allows unrestricted read/write access. For production, you'll want to configure proper security rules.
+</Note>
+
+### Start the Development Server
+
+If you have a dev server configured:
+
+```bash
+npm run dev
+```
+
+Or use any static file server:
+
+```bash
+# Using Python
+python -m http.server 8000
+
+# Using Node.js http-server
+npx http-server -p 8000
+
+# Using PHP
+php -S localhost:8000
+```
+
+### Open the Application
+
+Navigate to the application in your browser:
+
+```
+http://localhost:8000/public/
+```
+
+You should see the Reseñas Gastronómicas interface with the header:
+
+**"Reseñas Gastronómicas - Las aventuras culinarias de Gian & Yami"**
+
+</Steps>
+
+## Verify Your Setup
+
+Once the app loads, verify everything is working:
+
+<Steps>
+
+### Check Firebase Connection
+
+Open your browser's developer console (F12). You should see:
+
+- No Firebase connection errors
+- The app initializing successfully
+- Firebase SDK loading messages
+
+### Add Your First Review
+
+1. Click the **"Agregar Nueva Reseña"** button
+2. Fill in the form:
+   - Restaurant name: "El Emperador"
+   - Dish name: "Pizza Margherita"
+   - Photo URL: Use any image URL or leave blank
+   - Enable both Gian and Yami reviewers
+   - Add ratings and reviews for each
+3. Click **"Guardar Reseña"**
+
+### Verify Real-Time Sync
+
+1. Open the Firebase Console
+2. Go to **Firestore Database**
+3. You should see a `reviews` collection with your new review
+4. Try editing the review in Firebase - it should update in the app instantly!
+
+</Steps>
+
+## Understanding the Interface
+
+The main interface consists of several key areas:
+
+### Header
+
+Displays the application title and tagline:
+
+```html
+Reseñas Gastronómicas
+Las aventuras culinarias de Gian & Yami
+```
+
+### Search & Filter Panel
+
+- **Search bar**: Find reviews by restaurant, dish, or content
+- **Restaurant filters**: Quick filter buttons for each restaurant
+- **"Todos" button**: Show all reviews
+
+### Reviews Grid
+
+Displays review cards in a responsive grid (1-3 columns depending on screen size). Each card shows:
+
+- Dish photo
+- Restaurant and dish name
+- Combined rating
+- Visit date
+- Quick view of reviewers
+
+### Statistics Sidebar
+
+Shows:
+
+- Total reviews and average rating
+- Best rated dish
+- Worst rated dish
+- Featured dish of the month
+
+## Basic Usage
+
+### Adding a Review
+
+```javascript
+// The form collects this data structure:
+{
+  restaurant: "Restaurant Name",
+  dish: "Dish Name",
+  photo: "https://image-url.com/photo.jpg",
+  date: "05/03/2026",
+  reviewers: {
+    gian: {
+      rating: 9,
+      review: "Your review text"
+    },
+    yami: {
+      rating: 8,
+      review: "Your review text"
+    }
+  }
+}
+```
+
+### Searching Reviews
+
+The search functionality looks through:
+
+- Restaurant names
+- Dish names
+- Review text from both reviewers
+
+```javascript
+// From src/js/modules/datastore.js:79
+searchReviews(query) {
+  const searchTerm = query.toLowerCase();
+  return this.reviews.filter(review =>
+    review.restaurant.toLowerCase().includes(searchTerm) ||
+    review.dish.toLowerCase().includes(searchTerm) ||
+    Object.values(review.reviewers).some(reviewer =>
+      reviewer.review.toLowerCase().includes(searchTerm)
+    )
+  );
+}
+```
+
+### Filtering by Restaurant
+
+Click any restaurant filter button to show only reviews from that restaurant. The "Todos" button shows all reviews.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Reviews not saving to Firebase">
+    **Possible causes:**
+    - Firebase configuration is incorrect
+    - Firestore database not enabled
+    - Browser blocking third-party cookies
+    - Network connectivity issues
+
+    **Solutions:**
+    1. Check browser console for Firebase errors
+    2. Verify your `firebase-config.js` credentials
+    3. Ensure Firestore is enabled in Firebase Console
+    4. Check that test mode rules are active
+  </Accordion>
+
+  <Accordion title="Application shows loading indefinitely">
+    **Possible causes:**
+    - Firebase SDK not loading from CDN
+    - JavaScript errors preventing initialization
+    - Missing firebase-config.js file
+
+    **Solutions:**
+    1. Check browser console for errors
+    2. Verify internet connection (CDN access)
+    3. Ensure `src/js/data/firebase-config.js` exists
+    4. Clear browser cache and reload
+  </Accordion>
+
+  <Accordion title="Star ratings not working">
+    **Possible causes:**
+    - JavaScript not fully loaded
+    - Event listeners not initialized
+
+    **Solutions:**
+    1. Wait for page to fully load
+    2. Check console for JavaScript errors
+    3. Refresh the page
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+Now that you have the application running:
+
+<CardGroup cols={2}>
+  <Card title="Detailed Installation" icon="book" href="/installation">
+    Learn about advanced configuration options and production setup
+  </Card>
+  <Card title="Customization" icon="palette" href="/guides/customization">
+    Customize colors, styles, and functionality to match your preferences
+  </Card>
+  <Card title="Firebase Security" icon="shield" href="/guides/firebase-setup">
+    Set up production-ready Firestore security rules
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/installation">
+    Deploy your app to Firebase Hosting or other platforms
+  </Card>
+</CardGroup>
+
+<Tip>
+Start by adding 5-10 reviews of your favorite restaurants to get a feel for the app's statistics and filtering features!
+</Tip>
+
+## Getting Help
+
+If you encounter issues:
+
+1. Check the browser console for errors
+2. Verify all setup steps were completed
+3. Review the [Installation Guide](/installation) for detailed information
+4. Check Firebase Console for connectivity and quota issues
+
+---
+
+**¡Buen provecho! Happy reviewing! 🍽️**

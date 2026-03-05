@@ -1,0 +1,300 @@
+---
+title: 'UI'
+description: 'Main UI rendering module that handles review card display, grid layout, and user interface updates'
+---
+
+## Overview
+
+The UI module is responsible for rendering the review grid, managing the visual presentation of review cards, and coordinating UI updates across the application. It integrates with DataStore, Filters, Search, and Stats modules.
+
+## Methods
+
+### init()
+
+Initializes the UI module and all dependent modules.
+
+```javascript
+await UI.init();
+```
+
+<ResponseField name="void" type="Promise<void>">
+  Returns a promise that resolves when UI is initialized
+</ResponseField>
+
+**Process:**
+1. Initializes DataStore (loads reviews)
+2. Renders initial review grid
+3. Initializes Filters module
+4. Initializes Stats module
+5. Initializes Search module
+6. Sets up real-time update listener
+
+**Example:**
+```javascript
+import { UI } from './modules/ui.js';
+
+// Initialize on app load
+await UI.init();
+```
+
+**Event Listener:**
+```javascript
+// Automatically updates UI on data changes
+document.addEventListener('reviewsUpdated', () => {
+  this.renderReviews();
+  Filters.update();
+  Stats.update();
+});
+```
+
+---
+
+### renderReviews()
+
+Renders all review cards to the grid with current filters and search applied.
+
+```javascript
+UI.renderReviews();
+```
+
+**Behavior:**
+- Shows loading spinner if `DataStore.isLoading` is true
+- Applies search query if active
+- Applies restaurant filter if active
+- Renders review cards
+- Adds "Add New Review" card at the end
+- Updates statistics
+
+**Loading State:**
+```javascript
+if (DataStore.isLoading) {
+  // Shows spinner with loading message
+}
+```
+
+**Example:**
+```javascript
+// Manually trigger re-render
+UI.renderReviews();
+```
+
+## Review Card Structure
+
+Each review card includes:
+
+<ParamField path="Photo Section">
+  - Full-width dish photo (h-48 object-cover)
+  - Average rating badge (top-right overlay)
+  - White backdrop-blur badge design
+</ParamField>
+
+<ParamField path="Content Section">
+  - Restaurant name (bold heading)
+  - Dish name (gray subtitle)
+  - Reviewer names with icon
+  - Date with calendar icon
+</ParamField>
+
+<ParamField path="Interactions">
+  - Click opens detail modal
+  - Hover shadow effect (card-hover class)
+  - Rounded corners (rounded-2xl)
+</ParamField>
+
+## Card HTML Structure
+
+```html
+<div class="bg-white rounded-2xl shadow-lg hover:shadow-xl card-hover transition-all duration-300 overflow-hidden cursor-pointer">
+  <div class="relative">
+    <img src="{photo}" alt="{dish}" class="w-full h-48 object-cover">
+    <div class="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1">
+      <span class="text-sm font-semibold text-gray-800">
+        <i class="fas fa-star mr-1"></i>{avgRating}/10
+      </span>
+    </div>
+  </div>
+  <div class="p-5">
+    <h3 class="font-bold text-lg text-gray-800 mb-1">{restaurant}</h3>
+    <p class="text-gray-600 mb-3">{dish}</p>
+    <div class="flex items-center justify-between text-sm">
+      <span class="text-purple-600 font-medium">
+        <i class="fas fa-users mr-1"></i>{reviewerNames}
+      </span>
+      <span class="text-gray-500">
+        <i class="fas fa-calendar mr-1"></i>{date}
+      </span>
+    </div>
+  </div>
+</div>
+```
+
+## Add New Review Card
+
+The "Add New Review" card appears at the end of the grid:
+
+<ParamField path="Design">
+  - Gradient background (purple to pink)
+  - Dashed border
+  - Centered plus icon and text
+  - Fixed height (h-80)
+</ParamField>
+
+<ParamField path="Interaction">
+  - Click opens add modal (`Modal.toggleAddModal()`)
+  - Hover shadow effect
+</ParamField>
+
+```html
+<div class="bg-gradient-to-br from-purple-100 to-pink-100 border-2 border-dashed border-purple-300 rounded-2xl hover:shadow-xl card-hover transition-all duration-300 cursor-pointer flex items-center justify-center h-80">
+  <div class="text-center">
+    <div class="text-6xl mb-4 text-purple-400">
+      <i class="fas fa-plus"></i>
+    </div>
+    <p class="text-purple-600 font-semibold text-lg">Agregar Nueva Reseña</p>
+  </div>
+</div>
+```
+
+## Loading State
+
+When `DataStore.isLoading` is true:
+
+```html
+<div class="col-span-full flex items-center justify-center h-64">
+  <div class="text-center">
+    <i class="fas fa-spinner fa-spin text-4xl text-purple-500 mb-4"></i>
+    <p class="text-gray-600">Cargando reseñas...</p>
+  </div>
+</div>
+```
+
+## Filter and Search Integration
+
+### Search Integration
+
+```javascript
+let reviews = DataStore.reviews;
+
+if (Search.currentQuery) {
+  reviews = DataStore.searchReviews(Search.currentQuery);
+}
+```
+
+### Filter Integration
+
+```javascript
+if (Filters.currentFilter !== 'all') {
+  reviews = reviews.filter(r => r.restaurant === Filters.currentFilter);
+}
+```
+
+## Reviewer Name Formatting
+
+```javascript
+const reviewerNames = Object.keys(review.reviewers)
+  .map(r => r === 'gian' ? 'Gian' : 'Yami')
+  .join(' y ');
+```
+
+**Output Examples:**
+- `"Gian"` - Only Gian reviewed
+- `"Yami"` - Only Yami reviewed
+- `"Gian y Yami"` - Both reviewed
+
+## Event Handlers
+
+### Card Click Event
+
+```javascript
+card.addEventListener('click', () => Modal.showReviewDetail(review));
+```
+
+Opens the detail modal with full review information.
+
+### Add Card Click Event
+
+```javascript
+addCard.addEventListener('click', () => Modal.toggleAddModal());
+```
+
+Opens the modal to add a new review.
+
+## Dependencies
+
+<ParamField path="DataStore">
+  Data management and review operations
+</ParamField>
+
+<ParamField path="Filters">
+  Restaurant filtering functionality
+</ParamField>
+
+<ParamField path="Utils">
+  Utility functions (calculateAverageRating, escapeHtml)
+</ParamField>
+
+<ParamField path="Modal">
+  Modal display for review details and forms
+</ParamField>
+
+<ParamField path="Stats">
+  Statistics display updates
+</ParamField>
+
+<ParamField path="Search">
+  Search functionality integration
+</ParamField>
+
+## DOM Elements
+
+### Required HTML Elements
+
+```html
+<!-- Reviews grid container -->
+<div id="reviewsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+```
+
+## Styling Classes
+
+### Tailwind CSS Classes Used
+
+<ParamField path="Card Container">
+  `bg-white rounded-2xl shadow-lg hover:shadow-xl card-hover transition-all duration-300 overflow-hidden cursor-pointer`
+</ParamField>
+
+<ParamField path="Image Overlay">
+  `bg-white/90 backdrop-blur-sm rounded-full px-3 py-1`
+</ParamField>
+
+<ParamField path="Add Card">
+  `bg-gradient-to-br from-purple-100 to-pink-100 border-2 border-dashed border-purple-300`
+</ParamField>
+
+## Complete Usage Example
+
+```javascript
+import { UI } from './modules/ui.js';
+import { DataStore } from './modules/datastore.js';
+
+// Initialize application
+await UI.init();
+
+// Listen for data updates
+document.addEventListener('reviewsUpdated', () => {
+  console.log(`Displaying ${DataStore.reviews.length} reviews`);
+});
+
+// Manually trigger re-render after external changes
+UI.renderReviews();
+```
+
+## Performance Notes
+
+- Review grid is completely re-rendered on each update
+- Search and filter operations happen before rendering
+- Stats are updated after rendering completes
+- Loading state prevents rendering until data is ready
+
+## Source Code
+
+Source: `workspace/source/src/js/modules/ui.js:1`

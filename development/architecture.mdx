@@ -1,0 +1,516 @@
+---
+title: Application Architecture
+description: Comprehensive overview of the Reseñas Gastronómicas architecture, design patterns, and data flow
+---
+
+## Overview
+
+Reseñas Gastronómicas is built using a **modular, component-based architecture** with a clear separation of concerns. The application follows modern JavaScript practices with ES6 modules and employs a service-oriented design pattern for data management.
+
+## Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         User Interface                          │
+│                         (index.html)                            │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                        App Bootstrap                            │
+│                         (app.js)                                │
+│  - Initializes Firebase                                         │
+│  - Bootstraps all modules                                       │
+│  - Manages application lifecycle                                │
+└────────────────────────────┬────────────────────────────────────┘
+                             │
+         ┌───────────────────┼───────────────────┐
+         ▼                   ▼                   ▼
+┌──────────────────┐  ┌──────────────┐  ┌─────────────────┐
+│   UI Layer       │  │  Data Layer  │  │  Service Layer  │
+│                  │  │              │  │                 │
+│ - UI             │  │ - DataStore  │  │ - Firebase      │
+│ - Modal          │  │              │  │   Service       │
+│ - Form           │  │              │  │                 │
+│ - Search         │  │              │  │                 │
+│ - Filters        │  │              │  │                 │
+│ - Stats          │  │              │  │                 │
+│ - StarRating     │  │              │  │                 │
+│ - Dropdown       │  │              │  │                 │
+└──────────────────┘  └──────┬───────┘  └────────┬────────┘
+         │                   │                    │
+         └───────────────────┼────────────────────┘
+                             ▼
+                  ┌──────────────────────┐
+                  │   Utility Layer      │
+                  │   - Utils            │
+                  └──────────────────────┘
+                             │
+                             ▼
+              ┌──────────────────────────────┐
+              │      Firebase/Firestore      │
+              │    (Cloud Database)          │
+              └──────────────────────────────┘
+```
+
+## Core Design Principles
+
+### 1. Modular Architecture
+
+The application is divided into **independent, reusable modules**, each with a single responsibility:
+
+```javascript
+// Each module follows a singleton pattern
+export const ModuleName = {
+    init() {
+        // Initialize module
+    },
+    // Module methods
+};
+```
+
+This pattern provides:
+- **Encapsulation**: Each module manages its own state
+- **Reusability**: Modules can be easily reused or replaced
+- **Testability**: Isolated modules are easier to test
+- **Maintainability**: Clear boundaries between concerns
+
+### 2. Event-Driven Communication
+
+Modules communicate through custom events to maintain loose coupling:
+
+```javascript
+// DataStore broadcasts updates
+document.dispatchEvent(new CustomEvent('reviewsUpdated'));
+
+// UI listens for updates
+document.addEventListener('reviewsUpdated', () => {
+    this.renderReviews();
+    Filters.update();
+    Stats.update();
+});
+```
+
+**Benefits**:
+- Decoupled components
+- Real-time UI updates
+- Easy to add new listeners
+- Scalable event system
+
+### 3. Single Source of Truth
+
+All application data flows through the **DataStore** module:
+
+```javascript
+export const DataStore = {
+    reviews: [],  // Central data repository
+    isLoading: false,
+    unsubscribe: null,
+    
+    async init() {
+        FirebaseService.init();
+        await this.loadReviews();
+        this.setupRealTimeListener();
+    }
+};
+```
+
+From `src/js/modules/datastore.js:3-12`
+
+## Application Layers
+
+### Presentation Layer
+
+**Responsibilities**: User interface rendering and user interactions
+
+**Key Modules**:
+- **UI**: Main rendering logic
+- **Modal**: Dialog management
+- **Form**: Form handling and validation
+- **StarRating**: Interactive rating component
+- **Dropdown**: Autocomplete suggestions
+
+### Business Logic Layer
+
+**Responsibilities**: Data processing, filtering, and calculations
+
+**Key Modules**:
+- **Search**: Text-based filtering
+- **Filters**: Restaurant-based filtering
+- **Stats**: Statistical calculations and aggregations
+- **Utils**: Shared utility functions
+
+### Data Access Layer
+
+**Responsibilities**: Data persistence and retrieval
+
+**Key Modules**:
+- **DataStore**: Central data management
+- **FirebaseService**: Firebase/Firestore integration
+
+## Data Flow Architecture
+
+### Read Flow (Data Retrieval)
+
+```
+1. User opens app
+   ↓
+2. App.init() bootstraps application
+   ↓
+3. UI.init() → DataStore.init()
+   ↓
+4. DataStore.init() → FirebaseService.init()
+   ↓
+5. DataStore.loadReviews() → FirebaseService.getReviews()
+   ↓
+6. Firestore returns data
+   ↓
+7. DataStore.setupRealTimeListener() establishes snapshot listener
+   ↓
+8. UI.renderReviews() displays data
+   ↓
+9. Stats.update() calculates statistics
+   ↓
+10. Filters.update() builds filter buttons
+```
+
+### Write Flow (Data Creation/Update)
+
+```
+1. User submits form
+   ↓
+2. Form.handleSubmit() validates input
+   ↓
+3. DataStore.addReview() / DataStore.updateReview()
+   ↓
+4. FirebaseService.addReview() / FirebaseService.updateReview()
+   ↓
+5. Firestore persists data
+   ↓
+6. Real-time listener triggers snapshot
+   ↓
+7. DataStore receives updated data
+   ↓
+8. Custom event 'reviewsUpdated' dispatched
+   ↓
+9. UI auto-updates (UI.renderReviews())
+   ↓
+10. Stats and Filters refresh automatically
+```
+
+### Real-time Synchronization Flow
+
+```javascript
+setupRealTimeListener() {
+    this.unsubscribe = FirebaseService.onReviewsChange((reviews) => {
+        this.reviews = reviews;
+        // Trigger UI update
+        document.dispatchEvent(new CustomEvent('reviewsUpdated'));
+    });
+}
+```
+
+From `src/js/modules/datastore.js:26-37`
+
+This ensures:
+- **Automatic UI updates** when data changes
+- **Multi-device synchronization**
+- **No manual refresh required**
+- **Consistent state** across all components
+
+## Bootstrap Sequence
+
+The application initializes in a specific order to ensure dependencies are met:
+
+```javascript
+class App {
+    static async init() {
+        await UI.init();      // Initialize UI and DataStore
+        StarRating.init();    // Setup rating interactions
+        Dropdown.init();      // Setup autocomplete
+        Modal.init();         // Setup dialogs
+        Form.init();          // Setup form handlers
+        Search.init();        // Setup search
+        Stats.init();         // Calculate statistics
+        window.Modal = Modal; // Global access for convenience
+        window.db = db;       // Global Firestore reference
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    App.init();
+});
+```
+
+From `src/js/app.js:17-33`
+
+**Initialization Order Rationale**:
+1. **UI first** - Loads data and establishes real-time listeners
+2. **Interactive components** - StarRating, Dropdown, Modal, Form
+3. **Feature modules** - Search, Stats (depend on DataStore being ready)
+
+## State Management
+
+### Centralized State
+
+The DataStore maintains the application's central state:
+
+```javascript
+export const DataStore = {
+    reviews: [],        // All reviews
+    isLoading: false,   // Loading state
+    unsubscribe: null,  // Listener cleanup function
+};
+```
+
+### Module-Level State
+
+Some modules maintain local state for specific features:
+
+```javascript
+// Search module
+export const Search = {
+    currentQuery: '',
+};
+
+// Filters module
+export const Filters = {
+    currentFilter: 'all',
+};
+
+// StarRating module
+export const StarRating = {
+    ratings: { gian: 0, yami: 0 },
+};
+```
+
+This hybrid approach:
+- **Centralizes** shared data in DataStore
+- **Localizes** UI-specific state in components
+- **Minimizes** state duplication
+- **Simplifies** state updates
+
+## Error Handling Strategy
+
+### Graceful Degradation
+
+The application implements fallback mechanisms:
+
+```javascript
+async loadReviews() {
+    this.isLoading = true;
+    try {
+        this.reviews = await FirebaseService.getReviews();
+    } catch (error) {
+        console.error('Error cargando reseñas:', error);
+        // Load sample data if Firebase fails
+        this.loadSampleData();
+    }
+    this.isLoading = false;
+}
+```
+
+From `src/js/modules/datastore.js:14-24`
+
+### User Feedback
+
+Operations provide visual feedback:
+
+```javascript
+async handleSubmit(e) {
+    e.preventDefault();
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
+    // Show loading state
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Guardando...';
+    
+    try {
+        // Perform operation
+        await DataStore.addReview(reviewData);
+    } catch (error) {
+        alert('Error al guardar la reseña. Por favor, intenta de nuevo.');
+    } finally {
+        // Restore button state
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    }
+}
+```
+
+From `src/js/modules/form.js:12-68`
+
+## Performance Optimizations
+
+### 1. Real-time Updates Instead of Polling
+
+Uses Firestore snapshots for instant updates:
+
+```javascript
+onReviewsChange(callback) {
+    return this.db.collection('reviews')
+        .orderBy('timestamp', 'desc')
+        .onSnapshot(snapshot => {
+            const reviews = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            callback(reviews);
+        });
+}
+```
+
+From `src/js/components/firebase.js:68-78`
+
+### 2. Event-Driven UI Updates
+
+Only re-renders when data changes:
+
+```javascript
+document.addEventListener('reviewsUpdated', () => {
+    this.renderReviews();
+    Filters.update();
+    Stats.update();
+});
+```
+
+### 3. Efficient DOM Manipulation
+
+Builds HTML strings and updates in batches:
+
+```javascript
+renderReviews() {
+    const grid = document.getElementById('reviewsGrid');
+    grid.innerHTML = ''; // Clear once
+    
+    reviews.forEach(review => {
+        const card = document.createElement('div');
+        card.innerHTML = `...`; // Build HTML
+        grid.appendChild(card); // Append to DOM
+    });
+}
+```
+
+## Security Considerations
+
+### XSS Prevention
+
+All user input is escaped before rendering:
+
+```javascript
+escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+```
+
+From `src/js/modules/utils.js:13-17`
+
+Usage throughout the codebase:
+```javascript
+card.innerHTML = `
+    <h3>${Utils.escapeHtml(review.restaurant)}</h3>
+    <p>${Utils.escapeHtml(review.dish)}</p>
+`;
+```
+
+### Firebase Security
+
+Firebase configuration is externalized and protected:
+- Configuration stored in separate file
+- Firebase Security Rules control access
+- Server-side timestamps prevent manipulation
+
+## File Structure
+
+```
+reseñas-gastronómicas/
+├── public/
+│   └── index.html              # Main HTML file
+├── src/
+│   ├── css/
+│   │   └── styles.css          # Application styles
+│   ├── js/
+│   │   ├── app.js              # Application entry point
+│   │   ├── components/
+│   │   │   └── firebase.js     # Firebase service
+│   │   ├── modules/
+│   │   │   ├── datastore.js    # Data management
+│   │   │   ├── ui.js           # UI rendering
+│   │   │   ├── modal.js        # Modal dialogs
+│   │   │   ├── form.js         # Form handling
+│   │   │   ├── search.js       # Search functionality
+│   │   │   ├── filters.js      # Filtering logic
+│   │   │   ├── stats.js        # Statistics
+│   │   │   ├── starrating.js   # Rating component
+│   │   │   ├── dropdown.js     # Autocomplete
+│   │   │   └── utils.js        # Utilities
+│   │   └── data/
+│   │       └── firebase-config.js  # Firebase configuration
+└── package.json                # Dependencies
+```
+
+## Technology Stack
+
+### Frontend
+- **Vanilla JavaScript (ES6+)**: Modern JavaScript with modules
+- **Tailwind CSS**: Utility-first CSS framework
+- **Font Awesome**: Icon library
+
+### Backend
+- **Firebase**: Authentication and hosting (optional)
+- **Cloud Firestore**: NoSQL real-time database
+
+### Build Tools
+- **Node.js**: Development server and build scripts
+- **dotenv**: Environment variable management
+
+## Design Patterns Used
+
+### 1. Singleton Pattern
+All modules are singletons with static methods:
+
+```javascript
+export const UI = {
+    async init() { /* ... */ },
+    renderReviews() { /* ... */ }
+};
+```
+
+### 2. Observer Pattern
+Event-driven architecture with custom events:
+
+```javascript
+// Publisher
+document.dispatchEvent(new CustomEvent('reviewsUpdated'));
+
+// Subscriber
+document.addEventListener('reviewsUpdated', () => { /* ... */ });
+```
+
+### 3. Facade Pattern
+DataStore provides simplified interface to FirebaseService:
+
+```javascript
+// Simple API
+await DataStore.addReview(review);
+
+// Hides complexity of Firebase operations
+```
+
+### 4. Repository Pattern
+DataStore acts as repository for review data:
+
+```javascript
+getReviews(filter = 'all')
+searchReviews(query)
+getRestaurants()
+```
+
+## Next Steps
+
+- Review [Module Documentation](/development/modules) for detailed module information
+- Explore [Firebase Integration](/development/firebase-integration) for real-time features
+- Check [API Reference](/api/datastore) for method signatures

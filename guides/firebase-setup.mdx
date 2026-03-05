@@ -1,0 +1,535 @@
+---
+title: Firebase Setup and Configuration
+description: Complete guide to configuring Firebase Firestore for persistent data storage in Reseñas Gastronómicas
+---
+
+## Overview
+
+Reseñas Gastronómicas uses **Firebase Firestore** as its backend database for storing reviews. This guide walks you through the complete Firebase setup process, from creating a project to configuring security rules.
+
+## Prerequisites
+
+Before starting, ensure you have:
+- A Google account for accessing Firebase Console
+- Basic understanding of NoSQL databases (helpful but not required)
+- Access to your project's source code
+
+## Firebase Project Setup
+
+<Steps>
+  <Step title="Create a Firebase Project">
+    Navigate to the [Firebase Console](https://console.firebase.google.com/) and create a new project.
+
+    1. Click **Add Project**
+    2. Enter a project name (e.g., "resenas-gastronomicas")
+    3. Optionally disable Google Analytics if not needed
+    4. Click **Create Project**
+
+    <Tip>
+    Choose a descriptive project name that clearly identifies your application. This name is only visible in the console.
+    </Tip>
+  </Step>
+
+  <Step title="Register Your Web App">
+    After creating the project, register your web application:
+
+    1. In the Firebase Console, click the **Web** icon (`</>`) to add a web app
+    2. Enter an app nickname (e.g., "Reseñas Web App")
+    3. **Do not** enable Firebase Hosting (unless you plan to use it)
+    4. Click **Register App**
+
+    Firebase will display your app configuration. **Keep this page open** - you'll need these values shortly.
+  </Step>
+
+  <Step title="Enable Firestore Database">
+    Set up Cloud Firestore for data storage:
+
+    1. In the Firebase Console sidebar, click **Firestore Database**
+    2. Click **Create Database**
+    3. Choose **Start in test mode** (we'll configure security rules later)
+    4. Select a Firestore location (choose the region closest to your users)
+    5. Click **Enable**
+
+    <Warning>
+    Test mode allows open read/write access to your database. This is fine for development but **must be secured** before production use.
+    </Warning>
+  </Step>
+
+  <Step title="Copy Configuration Keys">
+    From the Firebase Console, copy your configuration object. It looks like:
+
+    ```javascript
+    const firebaseConfig = {
+      apiKey: "AIzaSyD...",
+      authDomain: "your-project.firebaseapp.com",
+      projectId: "your-project-id",
+      storageBucket: "your-project.appspot.com",
+      messagingSenderId: "123456789",
+      appId: "1:123456789:web:abcdef"
+    };
+    ```
+
+    <Note>
+    Keep your `apiKey` confidential. While it's safe to include in client-side code, it should be restricted using Firebase security rules and API key restrictions.
+    </Note>
+  </Step>
+</Steps>
+
+## Code Configuration
+
+<Steps>
+  <Step title="Create Firebase Config File">
+    Create a configuration file to store your Firebase credentials:
+
+    **Create file**: `src/js/data/firebase-config.js`
+
+    ```javascript
+    export const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT.firebaseapp.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT.appspot.com",
+        messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+        appId: "YOUR_APP_ID"
+    };
+    ```
+
+    Replace the placeholder values with your actual Firebase configuration.
+
+    <Warning>
+    If using version control (Git), consider adding this file to `.gitignore` to avoid exposing credentials. Use environment variables for production deployments.
+    </Warning>
+  </Step>
+
+  <Step title="Verify Firebase Initialization">
+    The application initializes Firebase in `src/js/app.js:1-6`:
+
+    ```javascript
+    // Import configuration
+    import { firebaseConfig } from './data/firebase-config.js';
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    ```
+
+    This code:
+    - Imports your configuration
+    - Initializes the Firebase app
+    - Creates a Firestore database instance
+  </Step>
+
+  <Step title="Confirm Firebase SDK Loading">
+    Ensure the Firebase SDKs are loaded in `public/index.html:9-10`:
+
+    ```html
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    ```
+
+    <Note>
+    The application uses Firebase v9 in compatibility mode. This provides the easier v8 API while getting v9 performance benefits.
+    </Note>
+  </Step>
+</Steps>
+
+## Firestore Data Structure
+
+### Collection: `reviews`
+
+All reviews are stored in a single collection named **reviews**. Each document represents one review:
+
+```javascript
+// From src/js/components/firebase.js:26-30
+const reviewWithTimestamp = {
+    ...review,
+    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+    createdAt: new Date().toISOString()
+};
+```
+
+### Document Schema
+
+```json
+{
+  "restaurant": "string",
+  "dish": "string",
+  "photo": "string (URL)",
+  "date": "string (DD/MM/YYYY)",
+  "timestamp": "Firestore Timestamp",
+  "createdAt": "ISO 8601 string",
+  "updatedAt": "ISO 8601 string (if edited)",
+  "reviewers": {
+    "gian": {
+      "rating": "number (1-10)",
+      "review": "string"
+    },
+    "yami": {
+      "rating": "number (1-10)",
+      "review": "string"
+    }
+  }
+}
+```
+
+## Firebase Operations
+
+The application performs four main Firestore operations:
+
+### 1. Reading Reviews
+
+```javascript
+// From src/js/components/firebase.js:10-20
+async getReviews() {
+    try {
+        const snapshot = await this.db.collection('reviews')
+            .orderBy('timestamp', 'desc')
+            .get();
+        return snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+    } catch (error) {
+        console.error('Error obteniendo reseñas:', error);
+        return [];
+    }
+}
+```
+
+**Features**:
+- Orders reviews by timestamp (newest first)
+- Handles errors gracefully
+- Returns empty array on failure
+
+### 2. Adding Reviews
+
+```javascript
+// From src/js/components/firebase.js:24-38
+async addReview(review) {
+    try {
+        const reviewWithTimestamp = {
+            ...review,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: new Date().toISOString()
+        };
+
+        const docRef = await this.db.collection('reviews').add(reviewWithTimestamp);
+        return { id: docRef.id, ...reviewWithTimestamp };
+    } catch (error) {
+        console.error('Error agregando reseña:', error);
+        throw error;
+    }
+}
+```
+
+**Features**:
+- Adds server timestamp for accurate ordering
+- Returns the created document with ID
+- Throws errors for handling in UI
+
+### 3. Updating Reviews
+
+```javascript
+// From src/js/components/firebase.js:41-54
+async updateReview(id, review) {
+    try {
+        const reviewWithTimestamp = {
+            ...review,
+            updatedAt: new Date().toISOString()
+        };
+
+        await this.db.collection('reviews').doc(id).update(reviewWithTimestamp);
+        return { id, ...reviewWithTimestamp };
+    } catch (error) {
+        console.error('Error actualizando reseña:', error);
+        throw error;
+    }
+}
+```
+
+**Features**:
+- Adds `updatedAt` timestamp
+- Uses document ID for precise updates
+- Preserves original `timestamp` and `createdAt`
+
+### 4. Deleting Reviews
+
+```javascript
+// From src/js/components/firebase.js:57-65
+async deleteReview(id) {
+    try {
+        await this.db.collection('reviews').doc(id).delete();
+        return true;
+    } catch (error) {
+        console.error('Error eliminando reseña:', error);
+        throw error;
+    }
+}
+```
+
+**Features**:
+- Permanently deletes the document
+- Returns success boolean
+- Errors are caught and handled by UI
+
+## Real-Time Sync
+
+The application uses Firestore's real-time listeners for automatic UI updates:
+
+```javascript
+// From src/js/components/firebase.js:68-78
+onReviewsChange(callback) {
+    return this.db.collection('reviews')
+        .orderBy('timestamp', 'desc')
+        .onSnapshot(snapshot => {
+            const reviews = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            callback(reviews);
+        });
+}
+```
+
+### Benefits of Real-Time Sync
+
+<CardGroup cols={2}>
+  <Card title="Instant Updates" icon="bolt">
+    Changes appear immediately across all devices viewing the app
+  </Card>
+  
+  <Card title="No Polling" icon="rotate">
+    No need to manually refresh - updates push automatically
+  </Card>
+  
+  <Card title="Multi-User Support" icon="users">
+    Multiple users can add/edit reviews simultaneously
+  </Card>
+  
+  <Card title="Offline Support" icon="wifi">
+    Firestore caches data for offline viewing (with additional config)
+  </Card>
+</CardGroup>
+
+## Security Rules
+
+By default, the database is in **test mode** which allows unrestricted access. For production, implement proper security rules.
+
+### Development Rules (Current)
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.time < timestamp.date(2025, 4, 1);
+    }
+  }
+}
+```
+
+<Warning>
+These rules expire on April 1, 2025. You'll need to update them before that date or your database will become inaccessible.
+</Warning>
+
+### Recommended Production Rules
+
+For a public review application with no authentication:
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /reviews/{reviewId} {
+      // Anyone can read reviews
+      allow read: if true;
+      
+      // Only allow writes with valid data structure
+      allow create: if request.resource.data.keys().hasAll(
+        ['restaurant', 'dish', 'photo', 'date', 'reviewers']
+      ) && request.resource.data.restaurant is string
+        && request.resource.data.dish is string
+        && request.resource.data.photo is string;
+      
+      // Allow updates and deletes (consider adding authentication)
+      allow update, delete: if true;
+    }
+  }
+}
+```
+
+<Note>
+For better security, implement Firebase Authentication and restrict updates/deletes to authenticated users only.
+</Note>
+
+### Applying Security Rules
+
+<Steps>
+  <Step title="Open Rules Editor">
+    In Firebase Console, go to **Firestore Database > Rules**
+  </Step>
+
+  <Step title="Edit Rules">
+    Paste your security rules into the editor
+  </Step>
+
+  <Step title="Publish Rules">
+    Click **Publish** to apply the new rules
+  </Step>
+
+  <Step title="Test Rules">
+    Use the Rules Playground to test read/write scenarios
+  </Step>
+</Steps>
+
+## Error Handling
+
+The application includes fallback data when Firebase is unavailable:
+
+```javascript
+// From src/js/modules/datastore.js:14-24
+async loadReviews() {
+    this.isLoading = true;
+    try {
+        this.reviews = await FirebaseService.getReviews();
+    } catch (error) {
+        console.error('Error cargando reseñas:', error);
+        // Load sample data if Firebase fails
+        this.loadSampleData();
+    }
+    this.isLoading = false;
+}
+```
+
+If Firebase fails to load, sample data is displayed:
+
+```javascript
+// From src/js/modules/datastore.js:93-107
+loadSampleData() {
+    this.reviews = [
+        {
+            id: "sample-1",
+            restaurant: "El Emperador",
+            dish: "Pizza Margherita",
+            photo: "https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b",
+            date: "15/09/2025",
+            reviewers: {
+                gian: { rating: 9, review: "¡Increíble! La masa estaba perfecta..." },
+                yami: { rating: 8, review: "Me encantó, aunque le faltó más queso..." }
+            }
+        }
+    ];
+}
+```
+
+## Environment Variables
+
+For production deployments, use environment variables instead of hardcoded config:
+
+### Using dotenv
+
+The project includes dotenv support:
+
+```javascript
+// package.json dependencies
+"dependencies": {
+  "dotenv": "^17.2.2"
+}
+```
+
+### Setup
+
+1. Create `.env` file in project root:
+
+```bash
+FIREBASE_API_KEY=your_api_key_here
+FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+FIREBASE_PROJECT_ID=your_project_id
+FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+FIREBASE_MESSAGING_SENDER_ID=123456789
+FIREBASE_APP_ID=1:123456789:web:abc123
+```
+
+2. Update build process to inject variables
+
+3. Add `.env` to `.gitignore`
+
+## Monitoring and Usage
+
+### Firebase Console Dashboard
+
+Monitor your database in real-time:
+
+- **Firestore > Data**: View and manually edit documents
+- **Usage**: Track reads, writes, and deletes
+- **Indexes**: Manage composite indexes for complex queries
+- **Errors**: View error logs from security rules
+
+### Usage Limits (Free Tier)
+
+<CardGroup cols={2}>
+  <Card title="Reads" icon="book-open">
+    50,000 reads per day
+  </Card>
+  
+  <Card title="Writes" icon="pen">
+    20,000 writes per day
+  </Card>
+  
+  <Card title="Deletes" icon="trash">
+    20,000 deletes per day
+  </Card>
+  
+  <Card title="Storage" icon="database">
+    1 GB stored data
+  </Card>
+</CardGroup>
+
+<Tip>
+For a personal review app with 2 users, free tier limits are more than sufficient. Monitor usage in the Firebase Console.
+</Tip>
+
+## Troubleshooting
+
+### Connection Errors
+
+**Problem**: "Error obteniendo reseñas" in console
+
+**Solutions**:
+- Verify Firebase config values are correct
+- Check that Firestore is enabled in Firebase Console
+- Ensure Firebase SDK scripts are loaded before app.js
+- Check browser console for specific Firebase errors
+
+### Permission Denied Errors
+
+**Problem**: "Missing or insufficient permissions"
+
+**Solutions**:
+- Check Firestore security rules
+- Verify test mode is enabled (for development)
+- Ensure rules haven't expired
+- Check Firebase Console for rule errors
+
+### Data Not Syncing
+
+**Problem**: New reviews don't appear automatically
+
+**Solutions**:
+- Verify real-time listener is set up (datastore.js:26)
+- Check browser console for listener errors
+- Ensure `reviewsUpdated` event is being dispatched
+- Refresh the page to force a new listener
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Add Reviews" icon="plus" href="/guides/adding-reviews">
+    Start adding reviews to your configured Firebase database
+  </Card>
+  
+  <Card title="Customize App" icon="palette" href="/guides/customization">
+    Personalize the look and feel of your review system
+  </Card>
+</CardGroup>

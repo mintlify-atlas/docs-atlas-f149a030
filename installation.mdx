@@ -1,0 +1,710 @@
+---
+title: Installation
+description: Complete installation and setup guide for Reseñas Gastronómicas
+---
+
+# Installation Guide
+
+This comprehensive guide covers everything you need to install, configure, and deploy Reseñas Gastronómicas. Whether you're setting up for local development or preparing for production deployment, this guide has you covered.
+
+## System Requirements
+
+### Minimum Requirements
+
+<CardGroup cols={2}>
+  <Card title="Node.js" icon="node-js">
+    Version 14.0 or higher
+  </Card>
+  <Card title="npm" icon="npm">
+    Version 6.0 or higher (included with Node.js)
+  </Card>
+  <Card title="Browser" icon="browser">
+    Any modern browser (Chrome, Firefox, Safari, Edge)
+  </Card>
+  <Card title="Firebase Account" icon="fire">
+    Free tier is sufficient
+  </Card>
+</CardGroup>
+
+### Recommended Specifications
+
+- **Operating System**: Windows 10+, macOS 10.14+, or Linux
+- **RAM**: 4GB minimum, 8GB recommended
+- **Storage**: 500MB free space
+- **Internet**: Stable connection for Firebase CDN access
+
+## Installation Steps
+
+<Steps>
+
+### Verify Prerequisites
+
+First, verify that you have Node.js and npm installed:
+
+```bash
+node --version
+# Should output v14.0.0 or higher
+
+npm --version
+# Should output 6.0.0 or higher
+```
+
+<Accordion title="Don't have Node.js installed?">
+  Download and install Node.js from [nodejs.org](https://nodejs.org/). Choose the LTS (Long Term Support) version for stability.
+
+  After installation, close and reopen your terminal, then verify the installation with the commands above.
+</Accordion>
+
+### Get the Source Code
+
+Clone or download the repository:
+
+```bash
+# Using Git
+git clone <your-repository-url>
+cd resenas-gastronomicas
+
+# Or download the ZIP and extract it
+# Then navigate to the directory
+cd resenas-gastronomicas
+```
+
+### Install Dependencies
+
+Install the required npm packages:
+
+```bash
+npm install
+```
+
+This installs the dependencies defined in `package.json`:
+
+```json
+{
+  "dependencies": {
+    "dotenv": "^17.2.2"
+  }
+}
+```
+
+<Note>
+The application primarily uses CDN-delivered libraries (Firebase, Tailwind CSS, Font Awesome) to minimize bundle size and improve loading performance.
+</Note>
+
+### Create Firebase Project
+
+1. **Navigate to Firebase Console**
+
+   Go to [console.firebase.google.com](https://console.firebase.google.com/)
+
+2. **Create New Project**
+
+   - Click **"Add project"** or **"Create a project"**
+   - Enter project name: `resenas-gastronomicas` (or your preferred name)
+   - Click **Continue**
+
+3. **Configure Google Analytics** (Optional)
+
+   - Choose whether to enable Google Analytics
+   - For development, you can disable it
+   - Click **Create project**
+
+4. **Wait for Setup**
+
+   Firebase will provision your project (takes 30-60 seconds)
+
+### Set Up Firestore Database
+
+1. **Access Firestore**
+
+   In your Firebase project, click **Firestore Database** in the left sidebar
+
+2. **Create Database**
+
+   - Click **"Create database"**
+   - Choose a starting mode:
+
+<CodeGroup>
+
+```text Test Mode (Development)
+Start in test mode
+- Allows all reads and writes
+- Perfect for development
+- Rules expire after 30 days
+- You'll need to update rules for production
+```
+
+```text Production Mode
+Start in production mode
+- Denies all reads and writes by default
+- Requires immediate rule configuration
+- More secure from the start
+- Recommended for production deployments
+```
+
+</CodeGroup>
+
+3. **Select Location**
+
+   Choose a Cloud Firestore location (nearest to your users for best performance)
+
+4. **Enable Database**
+
+   Click **Enable** and wait for provisioning
+
+<Warning>
+If you choose test mode, remember that the permissive rules expire after 30 days. You'll need to update your security rules before then.
+</Warning>
+
+### Configure Firebase SDK
+
+1. **Get Configuration**
+
+   In Firebase Console:
+   - Click the gear icon (⚙️) next to "Project Overview"
+   - Select **Project settings**
+   - Scroll to **"Your apps"** section
+   - Click the **Web** icon (`</>`)
+   - Register your app (e.g., "Reseñas Gastronómicas Web")
+   - Copy the `firebaseConfig` object
+
+2. **Create Configuration Directory**
+
+   ```bash
+   mkdir -p src/js/data
+   ```
+
+3. **Create Configuration File**
+
+   Create `src/js/data/firebase-config.js`:
+
+   ```javascript
+   // src/js/data/firebase-config.js
+   export const firebaseConfig = {
+     apiKey: "AIza...",
+     authDomain: "your-project.firebaseapp.com",
+     projectId: "your-project-id",
+     storageBucket: "your-project.appspot.com",
+     messagingSenderId: "123456789",
+     appId: "1:123456789:web:abc123"
+   };
+   ```
+
+<Tip>
+Your actual Firebase config will have real values. Copy them exactly as shown in the Firebase Console.
+</Tip>
+
+### Configure Security (Recommended)
+
+Add `firebase-config.js` to your `.gitignore` to prevent accidentally committing credentials:
+
+```bash .gitignore
+# Firebase configuration
+src/js/data/firebase-config.js
+
+# Environment variables
+.env
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# IDE files
+.vscode/
+.idea/
+```
+
+<Warning>
+Never commit `firebase-config.js` to public repositories. These credentials allow access to your Firebase project.
+</Warning>
+
+### Verify Installation
+
+Start a local development server:
+
+```bash
+# Option 1: If dev-server.js exists
+npm run dev
+
+# Option 2: Using Python
+python -m http.server 8000
+
+# Option 3: Using npx http-server
+npx http-server -p 8000
+
+# Option 4: Using PHP
+php -S localhost:8000
+```
+
+Open your browser and navigate to:
+
+```
+http://localhost:8000/public/
+```
+
+You should see the application load with no console errors.
+
+</Steps>
+
+## Project Structure
+
+Understanding the project structure helps with customization and troubleshooting:
+
+```
+reseñas-gastronomicas/
+├── public/
+│   └── index.html              # Main HTML file
+│
+├── src/
+│   ├── css/
+│   │   └── styles.css          # Custom styles and animations
+│   │
+│   └── js/
+│       ├── app.js              # Application entry point
+│       │
+│       ├── components/
+│       │   └── firebase.js     # Firebase service wrapper
+│       │
+│       ├── modules/
+│       │   ├── datastore.js    # Data management & state
+│       │   ├── ui.js           # UI rendering logic
+│       │   ├── form.js         # Form handling & validation
+│       │   ├── search.js       # Search functionality
+│       │   ├── stats.js        # Statistics calculations
+│       │   ├── filters.js      # Filter logic
+│       │   ├── modal.js        # Modal dialogs
+│       │   ├── starrating.js   # Star rating component
+│       │   ├── dropdown.js     # Dropdown components
+│       │   └── utils.js        # Utility functions
+│       │
+│       └── data/
+│           └── firebase-config.js  # Firebase credentials (git-ignored)
+│
+├── .gitignore                  # Git ignore rules
+├── package.json                # Project metadata & scripts
+├── package-lock.json           # Dependency lock file
+└── README.md                   # Project documentation
+```
+
+## Application Architecture
+
+The application follows a modular ES6 architecture:
+
+### Entry Point (app.js)
+
+```javascript
+// src/js/app.js:1-35
+import { firebaseConfig } from './data/firebase-config.js';
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// Import modules
+import { UI } from './modules/ui.js';
+import { StarRating } from './modules/starrating.js';
+import { Dropdown } from './modules/dropdown.js';
+import { Modal } from './modules/modal.js';
+import { Form } from './modules/form.js';
+import { Search } from './modules/search.js';
+import { Stats } from './modules/stats.js';
+
+class App {
+  static async init() {
+    await UI.init();
+    StarRating.init();
+    Dropdown.init();
+    Modal.init();
+    Form.init();
+    Search.init();
+    Stats.init();
+    window.Modal = Modal;
+    window.db = db;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  App.init();
+});
+```
+
+### Firebase Service Layer (firebase.js)
+
+Handles all Firebase interactions:
+
+```javascript
+// src/js/components/firebase.js:9-21
+async getReviews() {
+  try {
+    const snapshot = await this.db
+      .collection('reviews')
+      .orderBy('timestamp', 'desc')
+      .get();
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  } catch (error) {
+    console.error('Error obteniendo reseñas:', error);
+    return [];
+  }
+}
+```
+
+### Data Store (datastore.js)
+
+Manages application state and real-time synchronization:
+
+```javascript
+// src/js/modules/datastore.js:26-37
+setupRealTimeListener() {
+  if (this.unsubscribe) {
+    this.unsubscribe();
+  }
+
+  this.unsubscribe = FirebaseService.onReviewsChange((reviews) => {
+    this.reviews = reviews;
+    // Trigger event to update UI
+    document.dispatchEvent(new CustomEvent('reviewsUpdated'));
+  });
+}
+```
+
+### UI Module (ui.js)
+
+Handles rendering and updates:
+
+```javascript
+// src/js/modules/ui.js:9-22
+async init() {
+  await DataStore.init();
+  this.renderReviews();
+  Filters.init();
+  Stats.init();
+  Search.init();
+
+  // Listen for real-time updates
+  document.addEventListener('reviewsUpdated', () => {
+    this.renderReviews();
+    Filters.update();
+    Stats.update();
+  });
+}
+```
+
+## Configuration Options
+
+### Firebase Security Rules
+
+For production, configure Firestore security rules:
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /reviews/{reviewId} {
+      // Allow read access to all
+      allow read: if true;
+      
+      // Require authentication for write operations
+      allow write: if request.auth != null;
+      
+      // Or allow all for development (not recommended for production)
+      // allow read, write: if true;
+    }
+  }
+}
+```
+
+Update rules in Firebase Console:
+
+1. Go to **Firestore Database**
+2. Click **Rules** tab
+3. Paste your rules
+4. Click **Publish**
+
+### Custom Styling
+
+The application uses Tailwind CSS via CDN. For custom styles, edit:
+
+```css
+/* src/css/styles.css */
+
+/* Add your custom styles here */
+.custom-gradient {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Override existing styles */
+.review-card {
+  /* Your custom card styles */
+}
+```
+
+### Environment Variables (Optional)
+
+For advanced configurations, create a `.env` file:
+
+```bash
+# .env
+FIREBASE_API_KEY=your-api-key
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_AUTH_DOMAIN=your-auth-domain
+```
+
+Then use `dotenv` in your build process.
+
+## Development Scripts
+
+The `package.json` includes these scripts:
+
+```json
+{
+  "scripts": {
+    "dev": "node dev-server.js",
+    "build": "node build.js",
+    "serve": "npx serve dist"
+  }
+}
+```
+
+### Running Development Server
+
+```bash
+npm run dev
+```
+
+### Building for Production
+
+```bash
+npm run build
+```
+
+### Serving Built Files
+
+```bash
+npm run serve
+```
+
+## Database Schema
+
+Reviews are stored in Firestore with this structure:
+
+```javascript
+// Collection: reviews
+{
+  id: "auto-generated-id",
+  restaurant: "Restaurant Name",
+  dish: "Dish Name",
+  photo: "https://image-url.com/photo.jpg",
+  date: "05/03/2026",
+  timestamp: Firestore.Timestamp,
+  createdAt: "2026-03-05T10:30:00.000Z",
+  reviewers: {
+    gian: {
+      rating: 9,
+      review: "Review text from Gian"
+    },
+    yami: {
+      rating: 8,
+      review: "Review text from Yami"
+    }
+  }
+}
+```
+
+<Note>
+Either or both reviewers can be present. The `timestamp` field is used for ordering reviews, while `date` is the user-friendly display date.
+</Note>
+
+## Troubleshooting
+
+### Common Issues
+
+<AccordionGroup>
+
+<Accordion title="Module not found errors">
+  **Symptom**: Browser console shows `Failed to load module script`
+
+  **Cause**: 
+  - Incorrect file paths in imports
+  - Missing `firebase-config.js` file
+  - Server not serving from correct directory
+
+  **Solution**:
+  ```bash
+  # Ensure you're serving from the project root
+  # The path should be: http://localhost:8000/public/
+  
+  # Verify firebase-config.js exists
+  ls src/js/data/firebase-config.js
+  
+  # Check all import paths use .js extension
+  grep -r "import.*from" src/js/
+  ```
+</Accordion>
+
+<Accordion title="Firebase initialization errors">
+  **Symptom**: Console shows `Firebase App not initialized` or similar
+
+  **Cause**:
+  - Incorrect Firebase configuration
+  - Firebase SDK not loaded from CDN
+  - Network blocking CDN access
+
+  **Solution**:
+  ```javascript
+  // Verify Firebase SDK loads in index.html
+  // Check these script tags exist:
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  
+  // Verify config values in firebase-config.js
+  // All fields should have real values, not placeholders
+  ```
+</Accordion>
+
+<Accordion title="CORS errors when loading">
+  **Symptom**: Console shows `CORS policy` errors
+
+  **Cause**:
+  - Opening `index.html` directly (file:// protocol)
+  - Module imports require HTTP server
+
+  **Solution**:
+  ```bash
+  # Never open index.html directly in browser
+  # Always use a local server:
+  
+  python -m http.server 8000
+  # or
+  npx http-server -p 8000
+  
+  # Then navigate to:
+  # http://localhost:8000/public/
+  ```
+</Accordion>
+
+<Accordion title="Reviews not persisting to Firebase">
+  **Symptom**: Reviews appear but disappear on refresh
+
+  **Cause**:
+  - Firestore not enabled
+  - Security rules blocking writes
+  - Network connectivity issues
+
+  **Solution**:
+  ```bash
+  # 1. Verify Firestore is enabled in Firebase Console
+  # 2. Check security rules (use test mode for development)
+  # 3. Check browser console for specific error messages
+  # 4. Verify internet connection
+  ```
+</Accordion>
+
+</AccordionGroup>
+
+### Debug Mode
+
+Enable verbose logging:
+
+```javascript
+// Add to app.js before initialization
+window.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+
+// Enable Firestore debug logging
+firebase.firestore.setLogLevel('debug');
+```
+
+## Deployment
+
+### Firebase Hosting (Recommended)
+
+<Steps>
+
+### Install Firebase CLI
+
+```bash
+npm install -g firebase-tools
+```
+
+### Login to Firebase
+
+```bash
+firebase login
+```
+
+### Initialize Hosting
+
+```bash
+firebase init hosting
+```
+
+Choose:
+- Existing project: Select your project
+- Public directory: `public`
+- Single-page app: `No`
+- Set up automatic builds: `No`
+
+### Deploy
+
+```bash
+firebase deploy --only hosting
+```
+
+</Steps>
+
+### Other Hosting Options
+
+<CardGroup cols={2}>
+  <Card title="Netlify" icon="netlify">
+    Drag and drop the `public` folder to Netlify
+  </Card>
+  <Card title="Vercel" icon="vercel">
+    Connect your GitHub repo and deploy automatically
+  </Card>
+  <Card title="GitHub Pages" icon="github">
+    Push to `gh-pages` branch for free hosting
+  </Card>
+  <Card title="Traditional Hosting" icon="server">
+    Upload files via FTP to any web host
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+Now that you have Reseñas Gastronómicas installed:
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Learn basic usage and features
+  </Card>
+  <Card title="Customization" icon="palette">
+    Customize the look and feel
+  </Card>
+  <Card title="API Reference" icon="code">
+    Explore the module APIs
+  </Card>
+  <Card title="Best Practices" icon="star">
+    Learn optimization and security tips
+  </Card>
+</CardGroup>
+
+## Getting Help
+
+If you need assistance:
+
+1. Check the browser console for specific error messages
+2. Verify all installation steps were completed correctly
+3. Review Firebase Console for service status and quotas
+4. Check that your Firebase project is on the Blaze (pay as you go) plan if needed
+
+<Tip>
+Most issues are related to missing `firebase-config.js` or incorrect server setup. Always use an HTTP server, never open HTML files directly.
+</Tip>
+
+---
+
+**Happy cooking and reviewing! 👨‍🍳👩‍🍳**

@@ -1,0 +1,392 @@
+---
+title: 'Search'
+description: 'Real-time search functionality for filtering reviews by restaurant, dish, or review content'
+---
+
+## Overview
+
+The Search module provides real-time search functionality that filters reviews as the user types. It integrates with the UI module to update the display and manages search state across the application.
+
+## Module Structure
+
+<ParamField path="currentQuery" type="string">
+  Currently active search query
+  
+  ```javascript
+  currentQuery: ''
+  ```
+</ParamField>
+
+## Methods
+
+### init()
+
+Initializes the search module and sets up event listeners.
+
+```javascript
+Search.init();
+```
+
+**Sets up:**
+- Search input event listener
+- Clear button click handler
+
+**Required DOM Elements:**
+```html
+<input id="searchInput" type="text" placeholder="Search..." />
+<button id="clearSearch" class="hidden">×</button>
+```
+
+**Example:**
+```javascript
+import { Search } from './modules/search.js';
+
+Search.init();
+```
+
+---
+
+### handleSearch(query)
+
+Handles search input and updates the UI.
+
+```javascript
+Search.handleSearch('pizza');
+```
+
+<ParamField path="query" type="string" required>
+  Search query string
+</ParamField>
+
+**Behavior:**
+- Trims whitespace from query
+- Updates `currentQuery` property
+- Shows/hides clear button based on query
+- Triggers `UI.renderReviews()` to update display
+
+**Example:**
+```javascript
+// Programmatically trigger search
+Search.handleSearch('margherita');
+
+// Empty search shows all results
+Search.handleSearch('');
+```
+
+**Clear Button Logic:**
+```javascript
+if (this.currentQuery) {
+  clearBtn.classList.remove('hidden');
+} else {
+  clearBtn.classList.add('hidden');
+}
+```
+
+---
+
+### clearSearch()
+
+Clears the search query and resets the display.
+
+```javascript
+Search.clearSearch();
+```
+
+**Behavior:**
+- Clears search input value
+- Resets `currentQuery` to empty string
+- Hides clear button
+- Triggers `UI.renderReviews()` to show all reviews
+
+**Example:**
+```javascript
+// Clear search and show all reviews
+Search.clearSearch();
+```
+
+## Event Listeners
+
+### Input Event
+
+```javascript
+searchInput.addEventListener('input', (e) => this.handleSearch(e.target.value));
+```
+
+**Behavior:**
+- Fires on every keystroke
+- Updates results in real-time
+- No debouncing (immediate feedback)
+
+### Clear Button Click
+
+```javascript
+clearBtn.addEventListener('click', () => this.clearSearch());
+```
+
+**Behavior:**
+- Resets search to initial state
+- Shows all reviews
+
+## Integration with DataStore
+
+The Search module works with `DataStore.searchReviews()` through the UI module:
+
+```javascript
+// In UI.renderReviews()
+let reviews = DataStore.reviews;
+
+if (Search.currentQuery) {
+  reviews = DataStore.searchReviews(Search.currentQuery);
+}
+```
+
+## Search Functionality
+
+Search is performed by `DataStore.searchReviews()` which searches:
+
+<ParamField path="Restaurant Name">
+  Case-insensitive match in restaurant name
+</ParamField>
+
+<ParamField path="Dish Name">
+  Case-insensitive match in dish name
+</ParamField>
+
+<ParamField path="Review Content">
+  Case-insensitive match in any reviewer's review text
+</ParamField>
+
+**DataStore Search Implementation:**
+```javascript
+searchReviews(query) {
+  if (!query) return this.reviews;
+  
+  const searchTerm = query.toLowerCase();
+  return this.reviews.filter(review =>
+    review.restaurant.toLowerCase().includes(searchTerm) ||
+    review.dish.toLowerCase().includes(searchTerm) ||
+    Object.values(review.reviewers).some(reviewer =>
+      reviewer.review.toLowerCase().includes(searchTerm)
+    )
+  );
+}
+```
+
+## HTML Structure
+
+### Complete Search Component
+
+```html
+<div class="search-container">
+  <!-- Search Input -->
+  <div class="relative">
+    <input 
+      id="searchInput" 
+      type="text" 
+      placeholder="Buscar por restaurante, plato o reseña..." 
+      class="w-full px-4 py-2 pl-10 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+    />
+    
+    <!-- Search Icon -->
+    <div class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+      <i class="fas fa-search"></i>
+    </div>
+    
+    <!-- Clear Button -->
+    <button 
+      id="clearSearch" 
+      class="hidden absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+    >
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+</div>
+```
+
+## CSS Classes
+
+### Tailwind CSS Example
+
+```html
+<!-- Container -->
+<div class="relative w-full max-w-md">
+  
+  <!-- Input -->
+  <input 
+    id="searchInput"
+    class="w-full px-4 py-2 pl-10 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+    type="text"
+    placeholder="Search..."
+  />
+  
+  <!-- Clear Button (initially hidden) -->
+  <button 
+    id="clearSearch"
+    class="hidden absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 flex items-center justify-center text-gray-400 hover:text-gray-600 cursor-pointer"
+  >
+    ×
+  </button>
+</div>
+```
+
+## State Management
+
+### Current Query Access
+
+```javascript
+// Check if search is active
+if (Search.currentQuery) {
+  console.log('Searching for:', Search.currentQuery);
+}
+
+// Get current search term
+const searchTerm = Search.currentQuery;
+```
+
+## UI Updates
+
+The Search module triggers UI updates through:
+
+```javascript
+UI.renderReviews();
+```
+
+This causes the UI module to:
+1. Get all reviews from DataStore
+2. Apply search filter if `Search.currentQuery` exists
+3. Apply restaurant filter if active
+4. Render filtered results
+
+## Real-Time Search Flow
+
+```
+User types → Input Event → handleSearch() → 
+  → Update currentQuery → Show/hide clear button → 
+  → UI.renderReviews() → DataStore.searchReviews() → 
+  → Filtered results displayed
+```
+
+## Complete Usage Example
+
+```javascript
+import { Search } from './modules/search.js';
+import { UI } from './modules/ui.js';
+import { DataStore } from './modules/datastore.js';
+
+// Initialize search
+Search.init();
+
+// Programmatic search
+Search.handleSearch('pizza');
+console.log('Current query:', Search.currentQuery); // "pizza"
+
+// Clear search
+Search.clearSearch();
+console.log('Current query:', Search.currentQuery); // ""
+
+// Check search state
+if (Search.currentQuery) {
+  console.log(`Searching for: ${Search.currentQuery}`);
+} else {
+  console.log('No active search');
+}
+```
+
+## Integration Example
+
+```javascript
+// Initialize all modules together
+await DataStore.init();
+Filters.init();
+Search.init();
+Stats.init();
+UI.renderReviews();
+
+// Listen for search changes
+const searchInput = document.getElementById('searchInput');
+searchInput.addEventListener('input', () => {
+  console.log('Search query:', Search.currentQuery);
+  console.log('Results count:', DataStore.searchReviews(Search.currentQuery).length);
+});
+```
+
+## Advanced Features
+
+### Search with Filter Combination
+
+```javascript
+// Search works alongside restaurant filters
+// Both are applied in UI.renderReviews():
+
+let reviews = DataStore.reviews;
+
+// Apply search first
+if (Search.currentQuery) {
+  reviews = DataStore.searchReviews(Search.currentQuery);
+}
+
+// Then apply restaurant filter
+if (Filters.currentFilter !== 'all') {
+  reviews = reviews.filter(r => r.restaurant === Filters.currentFilter);
+}
+```
+
+### Add Search Debouncing (Optional)
+
+For performance with large datasets:
+
+```javascript
+let searchTimeout;
+
+searchInput.addEventListener('input', (e) => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(() => {
+    Search.handleSearch(e.target.value);
+  }, 300); // 300ms debounce
+});
+```
+
+## Accessibility
+
+### Enhanced Accessibility
+
+```html
+<label for="searchInput" class="sr-only">Search reviews</label>
+<input 
+  id="searchInput" 
+  type="search"
+  role="searchbox"
+  aria-label="Search reviews by restaurant, dish, or content"
+  placeholder="Search..."
+/>
+
+<button 
+  id="clearSearch"
+  class="hidden"
+  aria-label="Clear search"
+  title="Clear search"
+>
+  <i class="fas fa-times" aria-hidden="true"></i>
+</button>
+```
+
+## Performance Notes
+
+- Search executes on every keystroke (no debouncing by default)
+- For large datasets (100+ reviews), consider adding debouncing
+- Search is case-insensitive for better UX
+- Empty queries return all reviews (fast path)
+
+## Dependencies
+
+<ParamField path="UI">
+  For triggering review re-rendering
+</ParamField>
+
+<ParamField path="DataStore">
+  For accessing `searchReviews()` method (via UI)
+</ParamField>
+
+## Source Code
+
+Source: `workspace/source/src/js/modules/search.js:1`

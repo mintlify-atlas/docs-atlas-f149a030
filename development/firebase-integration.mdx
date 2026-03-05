@@ -1,0 +1,724 @@
+---
+title: Firebase Integration
+description: How Firebase and Cloud Firestore are integrated for real-time data synchronization, CRUD operations, and offline support
+---
+
+## Overview
+
+Reseñas Gastronómicas uses **Firebase Cloud Firestore** as its backend database, providing:
+- **Real-time synchronization** across all connected clients
+- **Offline support** with automatic sync when reconnected
+- **Scalable NoSQL database** with flexible data modeling
+- **Server-side timestamps** for consistent ordering
+- **Built-in security** with Firebase Security Rules
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Application Layer                    │
+│                  (DataStore Module)                     │
+└────────────────────────┬────────────────────────────────┘
+                         │
+                         │ Import & Method Calls
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────┐
+│                   Service Layer                         │
+│                 (FirebaseService)                       │
+│                                                         │
+│  • init()                                               │
+│  • getReviews()                                         │
+│  • addReview()                                          │
+│  • updateReview()                                       │
+│  • deleteReview()                                       │
+│  • onReviewsChange()                                    │
+└────────────────────────┬────────────────────────────────┘
+                         │
+                         │ Firebase SDK API Calls
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────┐
+│                   Firebase SDK                          │
+│              (Global firebase object)                   │
+└────────────────────────┬────────────────────────────────┘
+                         │
+                         │ HTTPS/WebSocket
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────┐
+│              Cloud Firestore Database                   │
+│                                                         │
+│  Collection: reviews                                    │
+│  ├── Document (auto-generated ID)                       │
+│  │   ├── restaurant: string                             │
+│  │   ├── dish: string                                   │
+│  │   ├── photo: string                                  │
+│  │   ├── date: string                                   │
+│  │   ├── timestamp: Timestamp                           │
+│  │   ├── createdAt: string                              │
+│  │   └── reviewers: map                                 │
+│  │       ├── gian: { rating: number, review: string }   │
+│  │       └── yami: { rating: number, review: string }   │
+│  └── ...                                                │
+└─────────────────────────────────────────────────────────┘
+```
+
+## Firebase Initialization
+
+### Application Entry Point
+
+Firebase is initialized at application startup:
+
+```javascript
+import { firebaseConfig } from './data/firebase-config.js';
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+class App {
+    static async init() {
+        await UI.init();
+        // ... other module initialization
+        window.db = db;  // Global access for convenience
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    App.init();
+});
+
+export { db };
+```
+From `src/js/app.js:2-35`
+
+### FirebaseService Initialization
+
+The service layer initializes its Firestore reference:
+
+```javascript
+export const FirebaseService = {
+    db: null,
+    
+    init() {
+        this.db = firebase.firestore();
+    }
+};
+```
+From `src/js/components/firebase.js:2-7`
+
+This is called during DataStore initialization:
+
+```javascript
+async init() {
+    FirebaseService.init();
+    await this.loadReviews();
+    this.setupRealTimeListener();
+}
+```
+From `src/js/modules/datastore.js:8-12`
+
+## Data Model
+
+### Review Document Structure
+
+```typescript
+interface Review {
+    id: string;              // Auto-generated document ID
+    restaurant: string;      // Restaurant name
+    dish: string;            // Dish name
+    photo: string;           // Photo URL
+    date: string;            // Visit date (DD/MM/YYYY format)
+    timestamp: Timestamp;    // Server timestamp for ordering
+    createdAt: string;       // ISO string when created
+    updatedAt?: string;      // ISO string when last updated
+    reviewers: {
+        gian?: {
+            rating: number;  // 0-10
+            review: string;  // Review text
+        };
+        yami?: {
+            rating: number;  // 0-10
+            review: string;  // Review text
+        };
+    };
+}
+```
+
+### Collection Organization
+
+- **Collection name**: `reviews`
+- **Document IDs**: Auto-generated by Firestore
+- **Ordering**: By `timestamp` field (descending)
+
+## CRUD Operations
+
+### Create (Add Review)
+
+**Service Layer Implementation**:
+
+```javascript
+async addReview(review) {
+    try {
+        const reviewWithTimestamp = {
+            ...review,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: new Date().toISOString()
+        };
+        
+        const docRef = await this.db.collection('reviews').add(reviewWithTimestamp);
+        return { id: docRef.id, ...reviewWithTimestamp };
+    } catch (error) {
+        console.error('Error agregando reseña:', error);
+        throw error;
+    }
+}
+```
+From `src/js/components/firebase.js:24-38`
+
+**Key Features**:
+- Uses **server timestamp** for consistent ordering across timezones
+- Adds **client-side ISO timestamp** for compatibility
+- Returns **document ID** with the review data
+- **Throws errors** for proper error handling upstream
+
+**DataStore Layer**:
+
+```javascript
+async addReview(review) {
+    try {
+        const newReview = await FirebaseService.addReview(review);
+        // No need to update this.reviews - real-time listener handles it
+        return newReview;
+    } catch (error) {
+        console.error('Error agregando reseña:', error);
+        throw error;
+    }
+}
+```
+From `src/js/modules/datastore.js:39-48`
+
+### Read (Get Reviews)
+
+**Initial Load**:
+
+```javascript
+async getReviews() {
+    try {
+        const snapshot = await this.db.collection('reviews')
+            .orderBy('timestamp', 'desc')
+            .get();
+        
+        return snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+    } catch (error) {
+        console.error('Error obteniendo reseñas:', error);
+        return [];
+    }
+}
+```
+From `src/js/components/firebase.js:10-21`
+
+**Features**:
+- **Ordered by timestamp** (newest first)
+- **Maps document ID** into the data object
+- **Returns empty array** on error (graceful degradation)
+
+### Update (Modify Review)
+
+**Service Layer**:
+
+```javascript
+async updateReview(id, review) {
+    try {
+        const reviewWithTimestamp = {
+            ...review,
+            updatedAt: new Date().toISOString()
+        };
+        
+        await this.db.collection('reviews').doc(id).update(reviewWithTimestamp);
+        return { id, ...reviewWithTimestamp };
+    } catch (error) {
+        console.error('Error actualizando reseña:', error);
+        throw error;
+    }
+}
+```
+From `src/js/components/firebase.js:41-54`
+
+**Features**:
+- Adds **updatedAt timestamp** to track modifications
+- Uses **document ID** to target specific review
+- Preserves original **createdAt** and **timestamp**
+
+**DataStore Layer**:
+
+```javascript
+async updateReview(id, review) {
+    try {
+        const updatedReview = await FirebaseService.updateReview(id, review);
+        return updatedReview;
+    } catch (error) {
+        console.error('Error actualizando reseña:', error);
+        throw error;
+    }
+}
+```
+From `src/js/modules/datastore.js:50-58`
+
+### Delete (Remove Review)
+
+**Service Layer**:
+
+```javascript
+async deleteReview(id) {
+    try {
+        await this.db.collection('reviews').doc(id).delete();
+        return true;
+    } catch (error) {
+        console.error('Error eliminando reseña:', error);
+        throw error;
+    }
+}
+```
+From `src/js/components/firebase.js:57-65`
+
+**DataStore Layer**:
+
+```javascript
+async deleteReview(id) {
+    try {
+        await FirebaseService.deleteReview(id);
+        return true;
+    } catch (error) {
+        console.error('Error eliminando reseña:', error);
+        throw error;
+    }
+}
+```
+From `src/js/modules/datastore.js:60-68`
+
+## Real-time Synchronization
+
+### Snapshot Listener
+
+The application uses Firestore's **snapshot listener** for real-time updates:
+
+```javascript
+onReviewsChange(callback) {
+    return this.db.collection('reviews')
+        .orderBy('timestamp', 'desc')
+        .onSnapshot(snapshot => {
+            const reviews = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            callback(reviews);
+        });
+}
+```
+From `src/js/components/firebase.js:68-78`
+
+**How It Works**:
+1. **Establishes WebSocket connection** to Firestore
+2. **Receives initial snapshot** with all documents
+3. **Triggers callback** whenever data changes (add/update/delete)
+4. **Returns unsubscribe function** for cleanup
+
+### Setting Up Real-time Sync
+
+**DataStore Implementation**:
+
+```javascript
+setupRealTimeListener() {
+    // Cancel previous listener if exists
+    if (this.unsubscribe) {
+        this.unsubscribe();
+    }
+    
+    this.unsubscribe = FirebaseService.onReviewsChange((reviews) => {
+        this.reviews = reviews;
+        // Notify all UI components
+        document.dispatchEvent(new CustomEvent('reviewsUpdated'));
+    });
+}
+```
+From `src/js/modules/datastore.js:26-37`
+
+**Cleanup on Destroy**:
+
+```javascript
+destroy() {
+    if (this.unsubscribe) {
+        this.unsubscribe();
+    }
+}
+```
+From `src/js/modules/datastore.js:109-113`
+
+### Real-time Flow Diagram
+
+```
+Client A                    Firestore                    Client B
+   │                           │                             │
+   │  1. Add Review            │                             │
+   ├──────────────────────────>│                             │
+   │                           │                             │
+   │  2. Document Saved        │                             │
+   │<──────────────────────────┤                             │
+   │                           │                             │
+   │                           │  3. Snapshot Update         │
+   │                           ├────────────────────────────>│
+   │                           │                             │
+   │  4. Local Listener        │  5. Remote Listener         │
+   │     Triggered             │     Triggered               │
+   │                           │                             │
+   │  6. UI Updates            │  7. UI Updates              │
+   │     Automatically         │     Automatically           │
+   │                           │                             │
+```
+
+## UI Integration
+
+### Automatic UI Updates
+
+When data changes, the UI automatically re-renders:
+
+```javascript
+async init() {
+    await DataStore.init();
+    this.renderReviews();
+    Filters.init();
+    Stats.init();
+    Search.init();
+    
+    // Listen for real-time updates
+    document.addEventListener('reviewsUpdated', () => {
+        this.renderReviews();  // Re-render review grid
+        Filters.update();      // Update filter buttons
+        Stats.update();        // Recalculate statistics
+    });
+}
+```
+From `src/js/modules/ui.js:9-22`
+
+### No Manual Refresh Required
+
+Because of the real-time listener:
+- **Additions** appear immediately in all clients
+- **Updates** reflect instantly across devices
+- **Deletions** remove items from all views
+- **No polling** or manual refresh needed
+
+## Error Handling & Fallbacks
+
+### Graceful Degradation
+
+If Firebase fails to load, the app falls back to sample data:
+
+```javascript
+async loadReviews() {
+    this.isLoading = true;
+    try {
+        this.reviews = await FirebaseService.getReviews();
+    } catch (error) {
+        console.error('Error cargando reseñas:', error);
+        // Load sample data if Firebase fails
+        this.loadSampleData();
+    }
+    this.isLoading = false;
+}
+```
+From `src/js/modules/datastore.js:14-24`
+
+### Sample Data
+
+```javascript
+loadSampleData() {
+    this.reviews = [
+        {
+            id: "sample-1",
+            restaurant: "El Emperador",
+            dish: "Pizza Margherita",
+            photo: "https://images.unsplash.com/photo-1565299624946-b28f40a0ca4b?w=400&h=300&fit=crop",
+            date: "15/09/2025",
+            reviewers: {
+                gian: { 
+                    rating: 9, 
+                    review: "¡Increíble! La masa estaba perfecta y los ingredientes súper frescos." 
+                },
+                yami: { 
+                    rating: 8, 
+                    review: "Me encantó, aunque le faltó un poquito más de queso para mi gusto." 
+                }
+            }
+        }
+    ];
+}
+```
+From `src/js/modules/datastore.js:93-107`
+
+### User Feedback During Operations
+
+Loading states are shown during async operations:
+
+```javascript
+async handleSubmit(e) {
+    e.preventDefault();
+    
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
+    // Show loading state
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Guardando...';
+    
+    try {
+        await DataStore.addReview(reviewData);
+    } catch (error) {
+        alert('Error al guardar la reseña. Por favor, intenta de nuevo.');
+    } finally {
+        // Restore button
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    }
+}
+```
+From `src/js/modules/form.js:12-68`
+
+## Performance Optimizations
+
+### 1. Server-Side Ordering
+
+Firestore handles sorting, reducing client-side processing:
+
+```javascript
+const snapshot = await this.db.collection('reviews')
+    .orderBy('timestamp', 'desc')  // Server-side sort
+    .get();
+```
+
+### 2. Efficient Real-time Updates
+
+Snapshot listeners only send **changes**, not the entire dataset:
+
+```javascript
+.onSnapshot(snapshot => {
+    // Firestore only sends changed documents
+    const reviews = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+    }));
+    callback(reviews);
+});
+```
+
+### 3. Single Listener Pattern
+
+Only one active listener prevents duplicate subscriptions:
+
+```javascript
+setupRealTimeListener() {
+    // Cancel previous listener
+    if (this.unsubscribe) {
+        this.unsubscribe();
+    }
+    
+    // Create new listener
+    this.unsubscribe = FirebaseService.onReviewsChange((reviews) => {
+        // ...
+    });
+}
+```
+
+### 4. Optimistic UI Updates
+
+The real-time listener provides instant feedback:
+- User adds review → immediately appears in their UI
+- Firestore confirms → updates all other connected clients
+- No manual refresh or reload needed
+
+## Security Considerations
+
+### Firebase Security Rules (Recommended)
+
+Although not in the source code, you should configure Firestore Security Rules:
+
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /reviews/{reviewId} {
+      // Allow read access to all users
+      allow read: if true;
+      
+      // Allow write only to authenticated users
+      allow create, update, delete: if request.auth != null;
+      
+      // Validate data structure
+      allow write: if request.resource.data.keys().hasAll(['restaurant', 'dish', 'photo', 'date', 'reviewers'])
+                   && request.resource.data.restaurant is string
+                   && request.resource.data.dish is string
+                   && request.resource.data.reviewers is map;
+    }
+  }
+}
+```
+
+### Input Sanitization
+
+All user input is escaped before rendering:
+
+```javascript
+card.innerHTML = `
+    <h3>${Utils.escapeHtml(review.restaurant)}</h3>
+    <p>${Utils.escapeHtml(review.dish)}</p>
+`;
+```
+
+### Server Timestamps
+
+Using server timestamps prevents client-side manipulation:
+
+```javascript
+const reviewWithTimestamp = {
+    ...review,
+    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+    createdAt: new Date().toISOString()
+};
+```
+
+## Offline Support
+
+Firestore SDK provides **automatic offline support**:
+
+### How It Works
+
+1. **Local Cache**: Firestore caches data locally in browser storage
+2. **Offline Reads**: App can read cached data when offline
+3. **Offline Writes**: Write operations are queued
+4. **Automatic Sync**: When reconnected, queued operations execute
+
+### No Code Required
+
+Offline support is **enabled by default** in Firestore Web SDK:
+
+```javascript
+firebase.firestore();  // Offline persistence enabled automatically
+```
+
+### User Experience
+
+- **Read operations** work offline using cached data
+- **Write operations** queue and sync when online
+- **Snapshot listeners** continue to work with cached data
+- **Automatic retry** of failed operations when reconnected
+
+## Testing Firebase Integration
+
+### Local Development
+
+1. **Firebase Emulator Suite** (recommended):
+   ```bash
+   firebase emulators:start --only firestore
+   ```
+
+2. **Update connection** in development:
+   ```javascript
+   if (location.hostname === 'localhost') {
+       firebase.firestore().useEmulator('localhost', 8080);
+   }
+   ```
+
+### Sample Data for Testing
+
+The `loadSampleData()` method provides fallback data for testing without Firebase.
+
+## Best Practices
+
+1. **Always use server timestamps** for ordering and consistency
+2. **Implement error handling** at every Firebase call
+3. **Cleanup listeners** when components unmount
+4. **Use transactions** for atomic multi-document updates
+5. **Implement Security Rules** to protect your data
+6. **Monitor usage** in Firebase Console to avoid quota limits
+7. **Cache aggressively** for offline support
+8. **Validate data** both client-side and server-side (Security Rules)
+
+## Common Patterns
+
+### Pattern 1: Async/Await with Try/Catch
+
+```javascript
+async addReview(review) {
+    try {
+        const result = await FirebaseService.addReview(review);
+        return result;
+    } catch (error) {
+        console.error('Error:', error);
+        throw error;  // Re-throw for upstream handling
+    }
+}
+```
+
+### Pattern 2: Real-time Listener with Cleanup
+
+```javascript
+setupRealTimeListener() {
+    if (this.unsubscribe) this.unsubscribe();
+    
+    this.unsubscribe = FirebaseService.onReviewsChange((data) => {
+        this.handleDataChange(data);
+    });
+}
+
+destroy() {
+    if (this.unsubscribe) this.unsubscribe();
+}
+```
+
+### Pattern 3: Optimistic UI with Event Broadcasting
+
+```javascript
+async addReview(review) {
+    const newReview = await FirebaseService.addReview(review);
+    // Don't update local state - let listener handle it
+    // This ensures consistency across all clients
+    return newReview;
+}
+```
+
+## Troubleshooting
+
+### Problem: Real-time updates not working
+
+**Solution**: Check that listener is properly set up:
+```javascript
+// Verify unsubscribe function is returned
+const unsubscribe = FirebaseService.onReviewsChange(callback);
+console.log(typeof unsubscribe); // Should be 'function'
+```
+
+### Problem: Timestamp ordering issues
+
+**Solution**: Ensure server timestamp is used:
+```javascript
+timestamp: firebase.firestore.FieldValue.serverTimestamp()
+```
+
+### Problem: Data not persisting
+
+**Solution**: Check Firestore Security Rules allow writes:
+```javascript
+allow write: if request.auth != null;  // Requires authentication
+```
+
+## Next Steps
+
+- Review [Application Architecture](/development/architecture) for overall design
+- Explore [Module Documentation](/development/modules) for component details
+- Check [DataStore API Reference](/api/datastore) for data access methods
+- Read [Firebase Documentation](https://firebase.google.com/docs/firestore) for advanced features

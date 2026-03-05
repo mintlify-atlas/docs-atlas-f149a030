@@ -1,0 +1,369 @@
+---
+title: Statistics Dashboard
+description: Comprehensive statistics system featuring best/worst dishes, recent highlights, and average ratings
+---
+
+## Overview
+
+Reseñas Gastronómicas includes a powerful statistics dashboard that analyzes all reviews to provide insights about the best and worst dishes, recent highlights, and overall rating averages.
+
+<Note>
+  Statistics are calculated in real-time based on all reviews in the database and update automatically when new reviews are added.
+</Note>
+
+## Stats Module
+
+The Stats module handles all statistical calculations and dashboard rendering:
+
+```javascript
+export const Stats = {
+    init() {
+        this.update();
+    },
+
+    update() {
+        const statsContent = document.getElementById('statsContent');
+        if (!statsContent) return;
+
+        const reviews = DataStore.reviews;
+        if (reviews.length === 0) {
+            statsContent.innerHTML = '<p class="text-gray-500 text-center">No hay datos aún</p>';
+            return;
+        }
+
+        const bestDish = this.getBestDish(reviews);
+        const worstDish = this.getWorstDish(reviews);
+        const recentBest = this.getRecentBest(reviews);
+        const totalReviews = reviews.length;
+        const avgRating = this.getOverallAverage(reviews);
+        
+        // Render statistics...
+    }
+};
+```
+
+## Key Metrics
+
+The dashboard displays five key metrics:
+
+### 1. Total Reviews
+
+Simple count of all reviews in the system:
+
+```javascript
+const totalReviews = reviews.length;
+```
+
+### 2. Overall Average Rating
+
+Calculates the average rating across all reviewers and all reviews:
+
+```javascript
+getOverallAverage(reviews) {
+    const allRatings = reviews.flatMap(review =>
+        Object.values(review.reviewers).map(r => r.rating)
+    );
+    const sum = allRatings.reduce((a, b) => a + b, 0);
+    return (sum / allRatings.length).toFixed(1);
+}
+```
+
+**How it works:**
+1. Extract all individual ratings from all reviewers
+2. Use `flatMap` to create a single array of ratings
+3. Sum all ratings and divide by total count
+4. Round to one decimal place
+
+<Tip>
+  The overall average includes ratings from both Gian and Yami, giving equal weight to each reviewer's opinion.
+</Tip>
+
+### 3. Best Dish
+
+Finds the dish with the highest average rating:
+
+```javascript
+getBestDish(reviews) {
+    return reviews.reduce((best, review) => {
+        const avgRating = parseFloat(Utils.calculateAverageRating(review));
+        const bestRating = parseFloat(Utils.calculateAverageRating(best));
+        return avgRating > bestRating ? review : best;
+    });
+}
+```
+
+**Algorithm:**
+- Uses `reduce()` to iterate through all reviews
+- Compares average rating of each review
+- Returns the review with the highest average
+
+### 4. Worst Dish
+
+Finds the dish with the lowest average rating:
+
+```javascript
+getWorstDish(reviews) {
+    return reviews.reduce((worst, review) => {
+        const avgRating = parseFloat(Utils.calculateAverageRating(review));
+        const worstRating = parseFloat(Utils.calculateAverageRating(worst));
+        return avgRating < worstRating ? review : worst;
+    });
+}
+```
+
+<Note>
+  Even the "worst" dish might still have a good rating - this metric is relative to other reviews in the system.
+</Note>
+
+### 5. Recent Best (Last 30 Days)
+
+Highlights the best-rated dish from recent reviews:
+
+```javascript
+getRecentBest(reviews) {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30));
+
+    const recentReviews = reviews.filter(review => {
+        const reviewDate = Utils.parseDate(review.date);
+        return reviewDate >= thirtyDaysAgo;
+    });
+
+    if (recentReviews.length === 0) return reviews[0];
+
+    return recentReviews.reduce((best, review) => {
+        const avgRating = parseFloat(Utils.calculateAverageRating(review));
+        const bestRating = parseFloat(Utils.calculateAverageRating(best));
+        return avgRating > bestRating ? review : best;
+    });
+}
+```
+
+**Process:**
+1. Calculate date 30 days ago from today
+2. Filter reviews to only recent ones
+3. Find the best among recent reviews
+4. Fall back to first review if no recent reviews exist
+
+<Accordion title="Date Parsing Logic">
+  Reviews store dates as strings in DD/MM/YYYY format. The Utils module parses these:
+  
+  ```javascript
+  parseDate(dateString) {
+      const parts = dateString.split('/');
+      return new Date(parts[2], parts[1] - 1, parts[0]);
+  }
+  ```
+  
+  Note: Month is 0-indexed in JavaScript dates, so we subtract 1.
+</Accordion>
+
+## Average Rating Calculation
+
+The `calculateAverageRating` utility function is used throughout the stats system:
+
+```javascript
+calculateAverageRating(review) {
+    const ratings = Object.values(review.reviewers).map(r => r.rating);
+    const sum = ratings.reduce((a, b) => a + b, 0);
+    return (sum / ratings.length).toFixed(1);
+}
+```
+
+**Example:**
+```javascript
+// Review with two reviewers
+const review = {
+    reviewers: {
+        gian: { rating: 9 },
+        yami: { rating: 8 }
+    }
+};
+
+// calculateAverageRating(review) returns "8.5"
+```
+
+## Dashboard Rendering
+
+The statistics dashboard renders a beautiful, color-coded interface:
+
+```javascript
+statsContent.innerHTML = `
+    <div class="text-center mb-6">
+        <div class="text-3xl font-bold text-purple-600">${totalReviews}</div>
+        <div class="text-sm text-gray-600">Reseñas totales</div>
+        <div class="text-lg font-semibold text-gray-700 mt-1">${avgRating}/10</div>
+        <div class="text-xs text-gray-500">Promedio general</div>
+    </div>
+
+    <!-- Best Dish -->
+    <div class="bg-green-50 rounded-xl p-4 mb-4">
+        <div class="flex items-center mb-2">
+            <i class="fas fa-crown text-yellow-500 mr-2"></i>
+            <h4 class="font-bold text-green-800">Mejor Plato</h4>
+        </div>
+        <div class="text-sm">
+            <div class="font-semibold text-green-700">${bestDish.dish}</div>
+            <div class="text-green-600">${bestDish.restaurant}</div>
+            <div class="flex items-center mt-1">
+                <i class="fas fa-star text-yellow-400 mr-1"></i>
+                <span class="font-bold">${Utils.calculateAverageRating(bestDish)}/10</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Additional sections... -->
+`;
+```
+
+### Color Coding
+
+<CardGroup cols={3}>
+  <Card title="Best Dish" icon="crown" color="#10b981">
+    Green background (bg-green-50) with green text for positive association
+  </Card>
+  <Card title="Worst Dish" icon="thumbs-down" color="#ef4444">
+    Red background (bg-red-50) with red text to indicate lower rating
+  </Card>
+  <Card title="Recent Best" icon="calendar-star" color="#3b82f6">
+    Blue background (bg-blue-50) with blue text for recent highlight
+  </Card>
+</CardGroup>
+
+## Real-Time Updates
+
+The statistics dashboard automatically updates when reviews change:
+
+```javascript
+// In the main application initialization
+document.addEventListener('reviewsUpdated', () => {
+    Stats.update();
+});
+```
+
+When a review is added, edited, or deleted:
+1. Firebase real-time listener detects the change
+2. `reviewsUpdated` event is dispatched
+3. `Stats.update()` is called
+4. All metrics are recalculated
+5. Dashboard is re-rendered with new data
+
+<Note>
+  Statistics update instantly across all connected clients thanks to Firebase real-time synchronization.
+</Note>
+
+## Edge Cases
+
+### No Reviews
+
+When there are no reviews in the system:
+
+```javascript
+if (reviews.length === 0) {
+    statsContent.innerHTML = '<p class="text-gray-500 text-center">No hay datos aún</p>';
+    return;
+}
+```
+
+### No Recent Reviews
+
+When there are no reviews in the last 30 days:
+
+```javascript
+if (recentReviews.length === 0) return reviews[0];
+```
+
+Falls back to showing the first review in the database.
+
+### Single Review
+
+When there's only one review:
+- It becomes both best and worst dish
+- Still displays properly with meaningful context
+
+## Performance Considerations
+
+### Efficient Array Operations
+
+The stats calculations use efficient array methods:
+
+```javascript
+// flatMap for flattening and mapping in one pass
+const allRatings = reviews.flatMap(review =>
+    Object.values(review.reviewers).map(r => r.rating)
+);
+
+// reduce for single-pass aggregation
+return reviews.reduce((best, review) => {
+    // comparison logic
+});
+```
+
+### Calculated Once Per Update
+
+Statistics are calculated only when:
+- New review is added
+- Existing review is updated
+- Review is deleted
+
+Not on every render, minimizing CPU usage.
+
+<Tip>
+  For very large datasets (1000+ reviews), consider caching statistics and updating incrementally rather than recalculating everything.
+</Tip>
+
+## Integration Example
+
+Here's how the stats module integrates with the rest of the application:
+
+```javascript
+// app.js initialization
+import { Stats } from './modules/stats.js';
+import { DataStore } from './modules/datastore.js';
+
+// Initialize stats after DataStore
+await DataStore.init();
+Stats.init();
+
+// Update stats when reviews change
+document.addEventListener('reviewsUpdated', () => {
+    Stats.update();
+});
+```
+
+## Accessibility Features
+
+The dashboard includes semantic HTML and proper text contrast:
+
+- Large, bold numbers for primary metrics
+- Descriptive labels for context
+- Icon + text combinations for visual and textual information
+- Color + text (not color alone) to convey meaning
+
+## Future Enhancements
+
+Potential improvements to the statistics system:
+
+<CardGroup cols={2}>
+  <Card title="Trends Over Time" icon="chart-line">
+    Show rating trends with historical data visualization
+  </Card>
+  <Card title="Restaurant Rankings" icon="ranking-star">
+    Rank restaurants by average rating across all dishes
+  </Card>
+  <Card title="Reviewer Statistics" icon="users">
+    Individual statistics for Gian and Yami
+  </Card>
+  <Card title="Category Analysis" icon="tags">
+    Break down statistics by dish category (pizza, pasta, etc.)
+  </Card>
+</CardGroup>
+
+## Code Reference
+
+Key files for statistics:
+
+- `stats.js:4-84` - Complete Stats module implementation
+- `stats.js:86-126` - Statistical calculation methods
+- `utils.js:2-6` - Average rating calculation
+- `utils.js:19-23` - Date parsing utility

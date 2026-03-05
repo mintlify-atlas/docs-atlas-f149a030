@@ -1,0 +1,324 @@
+---
+title: Review Management
+description: Comprehensive review management system with multi-reviewer support, real-time synchronization, and Firebase integration
+---
+
+## Overview
+
+Reseñas Gastronómicas features a robust review management system that allows multiple reviewers to collaborate on restaurant dish reviews. The system supports creating, editing, and deleting reviews with real-time synchronization across all connected clients.
+
+<Note>
+  All reviews are stored in Firebase Firestore and synchronized in real-time, ensuring that all users see the latest updates immediately.
+</Note>
+
+## Core Architecture
+
+The review system is built around the `DataStore` module, which handles all data operations and maintains the application state.
+
+### DataStore Module
+
+The DataStore serves as the central hub for all review operations:
+
+```javascript
+export const DataStore = {
+    reviews: [],
+    isLoading: false,
+    unsubscribe: null,
+
+    async init() {
+        FirebaseService.init();
+        await this.loadReviews();
+        this.setupRealTimeListener();
+    }
+};
+```
+
+**Key Features:**
+- Centralized state management
+- Automatic real-time synchronization
+- Fallback to sample data when offline
+- Event-driven UI updates
+
+## Creating Reviews
+
+### Multi-Reviewer Support
+
+Reviews support contributions from multiple reviewers (Gian and Yami). Each reviewer can independently rate and comment on dishes.
+
+```javascript
+const reviewData = {
+    restaurant: 'El Emperador',
+    dish: 'Pizza Margherita',
+    photo: 'https://example.com/photo.jpg',
+    date: '15/09/2025',
+    reviewers: {
+        gian: {
+            rating: 9,
+            review: '¡Increíble! La masa estaba perfecta.'
+        },
+        yami: {
+            rating: 8,
+            review: 'Me encantó, aunque le faltó un poquito más de queso.'
+        }
+    }
+};
+```
+
+### Adding a New Review
+
+Reviews are added through the Form module, which integrates with the star rating system:
+
+```javascript
+async handleSubmit(e) {
+    e.preventDefault();
+    
+    const gianActive = document.getElementById('gianActive').checked;
+    const yamiActive = document.getElementById('yamiActive').checked;
+    
+    const reviewData = {
+        restaurant: document.getElementById('restaurant').value,
+        dish: document.getElementById('dish').value,
+        photo: document.getElementById('photo').value,
+        date: visitDate ? Utils.formatDate(new Date(visitDate)) : Utils.formatDate(),
+        reviewers: {}
+    };
+    
+    if (gianActive) {
+        reviewData.reviewers.gian = {
+            rating: StarRating.ratings.gian,
+            review: document.getElementById('gianReview').value
+        };
+    }
+    
+    await DataStore.addReview(reviewData);
+}
+```
+
+<Tip>
+  You can enable or disable individual reviewers using the checkbox toggles in the form. This allows for single-reviewer or collaborative reviews.
+</Tip>
+
+## Editing Reviews
+
+The system supports full editing capabilities for existing reviews. When editing, the form is pre-populated with existing data:
+
+```javascript
+async updateReview(id, review) {
+    try {
+        const updatedReview = await FirebaseService.updateReview(id, review);
+        return updatedReview;
+    } catch (error) {
+        console.error('Error actualizando reseña:', error);
+        throw error;
+    }
+}
+```
+
+**Edit Process:**
+1. User clicks edit button on a review card
+2. Modal opens with form pre-filled with existing data
+3. Form tracks edit mode via `data-edit-id` attribute
+4. On submit, `updateReview()` is called instead of `addReview()`
+5. Real-time listener updates all connected clients
+
+## Deleting Reviews
+
+Reviews can be permanently deleted from the system:
+
+```javascript
+async deleteReview(id) {
+    try {
+        await FirebaseService.deleteReview(id);
+        return true;
+    } catch (error) {
+        console.error('Error eliminando reseña:', error);
+        throw error;
+    }
+}
+```
+
+<Warning>
+  Deleting a review is permanent and cannot be undone. The review is immediately removed from Firebase and all connected clients.
+</Warning>
+
+## Real-Time Synchronization
+
+One of the most powerful features is real-time synchronization across all connected clients.
+
+### Setting Up the Listener
+
+```javascript
+setupRealTimeListener() {
+    // Cancel previous listener if exists
+    if (this.unsubscribe) {
+        this.unsubscribe();
+    }
+
+    this.unsubscribe = FirebaseService.onReviewsChange((reviews) => {
+        this.reviews = reviews;
+        // Dispatch event to update UI
+        document.dispatchEvent(new CustomEvent('reviewsUpdated'));
+    });
+}
+```
+
+### How It Works
+
+<Accordion title="Real-Time Update Flow">
+  1. **User Action**: A user creates, edits, or deletes a review
+  2. **Firebase Update**: The change is written to Firestore
+  3. **Snapshot Listener**: All connected clients receive the update
+  4. **DataStore Update**: The local `reviews` array is updated
+  5. **DOM Event**: A `reviewsUpdated` event is dispatched
+  6. **UI Refresh**: Components listening to the event re-render
+</Accordion>
+
+## Firebase Integration
+
+The system uses Firebase Firestore for data persistence and real-time updates.
+
+### Adding Reviews to Firebase
+
+```javascript
+async addReview(review) {
+    try {
+        const reviewWithTimestamp = {
+            ...review,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+            createdAt: new Date().toISOString()
+        };
+
+        const docRef = await this.db.collection('reviews').add(reviewWithTimestamp);
+        return { id: docRef.id, ...reviewWithTimestamp };
+    } catch (error) {
+        console.error('Error agregando reseña:', error);
+        throw error;
+    }
+}
+```
+
+### Updating Reviews in Firebase
+
+```javascript
+async updateReview(id, review) {
+    const reviewWithTimestamp = {
+        ...review,
+        updatedAt: new Date().toISOString()
+    };
+
+    await this.db.collection('reviews').doc(id).update(reviewWithTimestamp);
+    return { id, ...reviewWithTimestamp };
+}
+```
+
+<Note>
+  The system automatically adds `timestamp`, `createdAt`, and `updatedAt` fields to track review history.
+</Note>
+
+## Review Data Structure
+
+Each review follows a consistent data structure:
+
+```javascript
+{
+    id: "unique-firebase-id",
+    restaurant: "Restaurant Name",
+    dish: "Dish Name",
+    photo: "https://image-url.com/photo.jpg",
+    date: "15/09/2025",
+    timestamp: Firestore.Timestamp,
+    createdAt: "2025-09-15T10:30:00.000Z",
+    updatedAt: "2025-09-16T14:20:00.000Z",
+    reviewers: {
+        gian: {
+            rating: 9,
+            review: "Review text from Gian"
+        },
+        yami: {
+            rating: 8,
+            review: "Review text from Yami"
+        }
+    }
+}
+```
+
+## Utility Functions
+
+The system includes several utility functions for working with reviews:
+
+### Calculate Average Rating
+
+```javascript
+calculateAverageRating(review) {
+    const ratings = Object.values(review.reviewers).map(r => r.rating);
+    const sum = ratings.reduce((a, b) => a + b, 0);
+    return (sum / ratings.length).toFixed(1);
+}
+```
+
+### Get Reviews by Restaurant
+
+```javascript
+getReviews(filter = 'all') {
+    return filter === 'all' 
+        ? this.reviews 
+        : this.reviews.filter(r => r.restaurant === filter);
+}
+```
+
+### Get Unique Restaurants
+
+```javascript
+getRestaurants() {
+    return [...new Set(this.reviews.map(r => r.restaurant))];
+}
+```
+
+## Offline Support
+
+The system gracefully handles offline scenarios:
+
+```javascript
+async loadReviews() {
+    this.isLoading = true;
+    try {
+        this.reviews = await FirebaseService.getReviews();
+    } catch (error) {
+        console.error('Error cargando reseñas:', error);
+        // Load sample data if Firebase fails
+        this.loadSampleData();
+    }
+    this.isLoading = false;
+}
+```
+
+<Tip>
+  If Firebase is unavailable, the app loads sample data to demonstrate functionality. This ensures users can always explore the interface.
+</Tip>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Validate Input" icon="check">
+    Always validate review data before submission to ensure data integrity
+  </Card>
+  <Card title="Handle Errors" icon="exclamation-triangle">
+    Implement proper error handling for all Firebase operations
+  </Card>
+  <Card title="Loading States" icon="spinner">
+    Show loading indicators during async operations for better UX
+  </Card>
+  <Card title="Cleanup Listeners" icon="trash">
+    Always unsubscribe from Firebase listeners when components unmount
+  </Card>
+</CardGroup>
+
+## Code Reference
+
+Key files for review management:
+
+- `datastore.js:8-24` - DataStore initialization and review loading
+- `datastore.js:39-68` - Add, update, and delete operations
+- `form.js:12-68` - Form submission and review creation
+- `firebase.js:24-64` - Firebase CRUD operations
+- `firebase.js:68-78` - Real-time listener setup

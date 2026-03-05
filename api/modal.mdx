@@ -1,0 +1,494 @@
+---
+title: 'Modal'
+description: 'Modal management module for displaying review details, add/edit forms, and delete confirmations'
+---
+
+## Overview
+
+The Modal module manages all modal dialogs in the application, including the review detail view, add/edit form, and delete confirmation. It handles form state, event listeners, and modal interactions.
+
+## Methods
+
+### init()
+
+Initializes modal event listeners and form controls.
+
+```javascript
+Modal.init();
+```
+
+**Sets up:**
+- Add review button click handler
+- Close modal button handler
+- Reviewer checkbox toggles (Gian/Yami)
+- Form section visibility controls
+
+**Example:**
+```javascript
+import { Modal } from './modules/modal.js';
+
+Modal.init();
+```
+
+---
+
+### toggleAddModal()
+
+Toggles the add/edit review modal visibility.
+
+```javascript
+Modal.toggleAddModal();
+```
+
+**Behavior:**
+- Toggles `hidden` class on modal
+- Resets form when opening
+- Updates dropdown component
+
+**Example:**
+```javascript
+// Open modal
+Modal.toggleAddModal();
+
+// Close modal (if already open)
+Modal.toggleAddModal();
+```
+
+---
+
+### toggleDetailModal()
+
+Toggles the review detail modal visibility.
+
+```javascript
+Modal.toggleDetailModal();
+```
+
+**Example:**
+```javascript
+Modal.toggleDetailModal(); // Open or close detail modal
+```
+
+---
+
+### resetForm()
+
+Resets the add/edit form to its initial state.
+
+```javascript
+Modal.resetForm();
+```
+
+**Actions Performed:**
+- Clears all form fields
+- Removes edit mode (`data-edit-id`)
+- Resets modal title to "Nueva Reseña"
+- Resets submit button to "Guardar Reseña"
+- Resets star ratings to 0
+- Shows both reviewer sections
+- Checks both reviewer checkboxes
+- Hides dropdown
+
+**Example:**
+```javascript
+// Reset form manually
+Modal.resetForm();
+```
+
+---
+
+### openEditModal(review)
+
+Opens the add/edit modal in edit mode with pre-filled data.
+
+```javascript
+Modal.openEditModal(review);
+```
+
+<ParamField path="review" type="object" required>
+  Review object to edit
+  
+  <ParamField path="id" type="string" required>
+    Review ID
+  </ParamField>
+  
+  <ParamField path="restaurant" type="string" required>
+    Restaurant name
+  </ParamField>
+  
+  <ParamField path="dish" type="string" required>
+    Dish name
+  </ParamField>
+  
+  <ParamField path="photo" type="string" required>
+    Photo URL
+  </ParamField>
+  
+  <ParamField path="date" type="string" required>
+    Date in DD/MM/YYYY format
+  </ParamField>
+  
+  <ParamField path="reviewers" type="object" required>
+    Reviewers data object
+  </ParamField>
+</ParamField>
+
+**Behavior:**
+- Changes modal title to "Editar Reseña"
+- Changes submit button to "Actualizar Reseña"
+- Pre-fills all form fields
+- Converts date from DD/MM/YYYY to YYYY-MM-DD
+- Sets star ratings
+- Configures reviewer sections
+- Stores review ID in `form.dataset.editId`
+
+**Example:**
+```javascript
+const review = {
+  id: "review-123",
+  restaurant: "El Emperador",
+  dish: "Pizza Margherita",
+  photo: "https://example.com/photo.jpg",
+  date: "15/09/2025",
+  reviewers: {
+    gian: { rating: 9, review: "¡Increíble!" },
+    yami: { rating: 8, review: "Me encantó" }
+  }
+};
+
+Modal.openEditModal(review);
+```
+
+---
+
+### showReviewDetail(review)
+
+Displays the full review detail modal with enhanced UI.
+
+```javascript
+Modal.showReviewDetail(review);
+```
+
+<ParamField path="review" type="object" required>
+  Complete review object to display
+</ParamField>
+
+**Features:**
+- Hero image with gradient overlay
+- Floating action buttons (edit, delete, close)
+- Restaurant and dish information
+- Average rating with star icons
+- Individual reviewer cards with ratings
+- Responsive design (mobile/desktop)
+- ESC key to close
+- Click outside to close
+
+**Modal Structure:**
+```html
+<!-- Hero Section -->
+<div class="relative h-64 md:h-80">
+  <img src="{photo}" class="w-full h-full object-cover">
+  <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+  <!-- Action buttons -->
+  <!-- Restaurant info -->
+</div>
+
+<!-- Content Section -->
+<div class="p-6 md:p-8">
+  <h3>{dish}</h3>
+  <div class="grid md:grid-cols-2 gap-6">
+    <!-- Reviewer cards -->
+  </div>
+</div>
+```
+
+**Example:**
+```javascript
+Modal.showReviewDetail(review);
+```
+
+---
+
+### generateStarIcons(rating)
+
+Generates HTML for star rating display.
+
+```javascript
+const stars = Modal.generateStarIcons(8.5);
+```
+
+<ParamField path="rating" type="number" required>
+  Rating value (0-10)
+</ParamField>
+
+<ResponseField name="html" type="string">
+  HTML string with Font Awesome star icons
+</ResponseField>
+
+**Star Types:**
+- `fas fa-star` - Filled star (for ratings)
+- `fas fa-star-half-alt` - Half star (for decimals)
+- `far fa-star` - Empty star (for remaining)
+
+**Example:**
+```javascript
+const stars = Modal.generateStarIcons(7.5);
+// Returns: "★★★★★★★☆☆☆" (as Font Awesome icons)
+```
+
+---
+
+### confirmDelete(review)
+
+Initiates the delete confirmation process.
+
+```javascript
+Modal.confirmDelete(review);
+```
+
+<ParamField path="review" type="object" required>
+  Review object to delete
+</ParamField>
+
+**Behavior:**
+- Calls `showDeleteConfirmation(review)`
+
+---
+
+### showDeleteConfirmation(review)
+
+Displays a delete confirmation modal.
+
+```javascript
+Modal.showDeleteConfirmation(review);
+```
+
+<ParamField path="review" type="object" required>
+  Review object to confirm deletion
+</ParamField>
+
+**Modal Features:**
+- Overlay backdrop
+- Confirmation message with dish and restaurant names
+- Cancel button (dismisses modal)
+- Delete button (confirms deletion)
+- Click outside to cancel
+
+**Modal HTML:**
+```html
+<div class="fixed inset-0 bg-black/50 modal-backdrop z-50">
+  <div class="bg-white rounded-2xl p-6 max-w-md">
+    <h3>Confirmar eliminación</h3>
+    <p>¿Estás seguro de que quieres eliminar la reseña de 
+       <strong>{dish}</strong> en <strong>{restaurant}</strong>?</p>
+    <button id="cancelDelete">Cancelar</button>
+    <button id="confirmDelete">Eliminar</button>
+  </div>
+</div>
+```
+
+**Example:**
+```javascript
+Modal.showDeleteConfirmation(review);
+```
+
+---
+
+### deleteReview(id)
+
+Deletes a review and shows notification.
+
+```javascript
+await Modal.deleteReview(id);
+```
+
+<ParamField path="id" type="string" required>
+  Review ID to delete
+</ParamField>
+
+<ResponseField name="void" type="Promise<void>">
+  Returns promise that resolves when deletion completes
+</ResponseField>
+
+**Behavior:**
+- Calls `DataStore.deleteReview(id)`
+- Closes detail modal on success
+- Shows success notification
+- Shows error notification on failure
+
+**Example:**
+```javascript
+try {
+  await Modal.deleteReview('review-123');
+} catch (error) {
+  console.error('Delete failed:', error);
+}
+```
+
+---
+
+### showNotification(message, type)
+
+Displays a temporary notification toast.
+
+```javascript
+Modal.showNotification('Reseña guardada', 'success');
+```
+
+<ParamField path="message" type="string" required>
+  Notification message text
+</ParamField>
+
+<ParamField path="type" type="string" default="'info'">
+  Notification type: 'success', 'error', or 'info'
+</ParamField>
+
+**Notification Styles:**
+- `success`: Green background (`bg-green-500`)
+- `error`: Red background (`bg-red-500`)
+- `info`: Blue background (`bg-blue-500`)
+
+**Behavior:**
+- Appears top-right corner
+- Auto-removes after 3 seconds
+- Smooth transition animation
+
+**Example:**
+```javascript
+// Success notification
+Modal.showNotification('Reseña eliminada correctamente', 'success');
+
+// Error notification
+Modal.showNotification('Error al eliminar la reseña', 'error');
+
+// Info notification
+Modal.showNotification('Procesando solicitud', 'info');
+```
+
+## DOM Elements Required
+
+### Add/Edit Modal
+
+```html
+<div id="addModal" class="hidden">
+  <h2><!-- Dynamic title --></h2>
+  <form id="reviewForm">
+    <input id="restaurant" />
+    <input id="dish" />
+    <input id="photo" />
+    <input id="visitDate" type="date" />
+    
+    <input type="checkbox" id="gianActive" />
+    <div id="gianSection">
+      <div class="star-rating" data-reviewer="gian"></div>
+      <span id="gianRating">0/10</span>
+      <textarea id="gianReview"></textarea>
+    </div>
+    
+    <input type="checkbox" id="yamiActive" />
+    <div id="yamiSection">
+      <div class="star-rating" data-reviewer="yami"></div>
+      <span id="yamiRating">0/10</span>
+      <textarea id="yamiReview"></textarea>
+    </div>
+    
+    <button type="submit"><!-- Dynamic text --></button>
+  </form>
+  <button id="closeAddModal">Close</button>
+</div>
+```
+
+### Detail Modal
+
+```html
+<div id="detailModal" class="hidden">
+  <div id="detailContent">
+    <!-- Content dynamically generated -->
+  </div>
+</div>
+```
+
+### Add Review Button
+
+```html
+<button id="addReviewBtn">Add Review</button>
+```
+
+## Event Listeners
+
+### Reviewer Section Toggles
+
+```javascript
+document.getElementById('gianActive').addEventListener('change', (e) => {
+  document.getElementById('gianSection').style.display = 
+    e.target.checked ? 'block' : 'none';
+});
+
+document.getElementById('yamiActive').addEventListener('change', (e) => {
+  document.getElementById('yamiSection').style.display = 
+    e.target.checked ? 'block' : 'none';
+});
+```
+
+### ESC Key Handler
+
+```javascript
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    Modal.toggleDetailModal();
+  }
+});
+```
+
+### Click Outside Handler
+
+```javascript
+modal.addEventListener('click', (e) => {
+  if (e.target === modal) {
+    Modal.toggleDetailModal();
+  }
+});
+```
+
+## Dependencies
+
+<ParamField path="StarRating">
+  Star rating component for form input
+</ParamField>
+
+<ParamField path="Dropdown">
+  Dropdown component for restaurant selection
+</ParamField>
+
+<ParamField path="Utils">
+  Utility functions (calculateAverageRating, escapeHtml)
+</ParamField>
+
+<ParamField path="DataStore">
+  Data operations for delete functionality
+</ParamField>
+
+## Complete Usage Example
+
+```javascript
+import { Modal } from './modules/modal.js';
+
+// Initialize
+Modal.init();
+
+// Show review detail
+Modal.showReviewDetail(reviewObject);
+
+// Open add modal
+Modal.toggleAddModal();
+
+// Open edit modal
+Modal.openEditModal(reviewObject);
+
+// Show notification
+Modal.showNotification('Success!', 'success');
+```
+
+## Source Code
+
+Source: `workspace/source/src/js/modules/modal.js:1`

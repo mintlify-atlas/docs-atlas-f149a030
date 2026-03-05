@@ -1,0 +1,656 @@
+---
+title: Customization Guide
+description: Learn how to customize colors, styles, components, and behavior in Reseñas Gastronómicas
+---
+
+## Overview
+
+Reseñas Gastronómicas is built with **Tailwind CSS** and custom CSS variables, making it highly customizable. This guide shows you how to modify colors, styles, components, and behaviors to match your preferences.
+
+## Color Customization
+
+The application uses a gradient color scheme based on purple and pink tones. You can customize these throughout the interface.
+
+### Primary Gradient Colors
+
+The main gradient is defined in multiple places:
+
+#### Header Title
+
+```html
+<!-- From public/index.html:21 -->
+<h1 class="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 
+           bg-clip-text text-transparent">
+    <i class="fas fa-utensils mr-2"></i>Reseñas Gastronómicas
+</h1>
+```
+
+**Customization**: Change `from-purple-600` and `to-pink-600` to any Tailwind color:
+
+```html
+<!-- Blue to green gradient -->
+from-blue-600 to-green-600
+
+<!-- Orange to red gradient -->
+from-orange-600 to-red-600
+
+<!-- Teal to cyan gradient -->
+from-teal-600 to-cyan-600
+```
+
+#### Active Filter Button
+
+```css
+/* From src/css/styles.css:59-62 */
+.filter-btn.active {
+    background: linear-gradient(to right, #9333ea, #db2777);
+    color: white;
+}
+```
+
+**Customization**: Use any hex colors or CSS gradient syntax:
+
+```css
+.filter-btn.active {
+    background: linear-gradient(to right, #3b82f6, #10b981);
+    color: white;
+}
+```
+
+#### Submit Button
+
+```html
+<!-- From public/index.html:217 -->
+<button type="submit" 
+        class="w-full bg-gradient-to-r from-purple-600 to-pink-600 
+               text-white py-4 rounded-xl hover:shadow-lg">
+    <i class="fas fa-save mr-2"></i>Guardar Reseña
+</button>
+```
+
+### Reviewer Color Schemes
+
+Each reviewer has distinct color theming:
+
+#### Gian (Blue Theme)
+
+```html
+<!-- From public/index.html:157 -->
+<div class="bg-blue-50 p-4 rounded-xl">
+    <h4 class="font-semibold text-blue-800">
+        <i class="fas fa-user mr-2"></i>Gian
+    </h4>
+</div>
+```
+
+**Customization**: Change all blue references:
+- `bg-blue-50` → Background color
+- `text-blue-800` → Text color
+- `border-blue-300` → Border color (in textarea)
+- `focus:ring-blue-500` → Focus ring color
+
+#### Yami (Pink Theme)
+
+```html
+<!-- From public/index.html:187 -->
+<div class="bg-pink-50 p-4 rounded-xl">
+    <h4 class="font-semibold text-pink-800">
+        <i class="fas fa-user mr-2"></i>Yami
+    </h4>
+</div>
+```
+
+**Customization Example** - Change Yami to green:
+
+```html
+<div class="bg-green-50 p-4 rounded-xl">
+    <h4 class="font-semibold text-green-800">
+        <i class="fas fa-user mr-2"></i>Yami
+    </h4>
+</div>
+```
+
+<Note>
+When changing reviewer colors, update all instances in the review detail modal as well (modal.js:259-273).
+</Note>
+
+### Background Gradient
+
+```html
+<!-- From public/index.html:15 -->
+<body class="bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50 min-h-screen">
+```
+
+**Customization**: Create different atmospheric backgrounds:
+
+```html
+<!-- Cool blue atmosphere -->
+from-blue-50 via-cyan-50 to-teal-50
+
+<!-- Warm sunset -->
+from-orange-50 via-red-50 to-pink-50
+
+<!-- Forest green -->
+from-green-50 via-emerald-50 to-teal-50
+```
+
+## Typography Customization
+
+### Font Family
+
+The application uses the Inter font:
+
+```css
+/* From src/css/styles.css:1-3 */
+body {
+    font-family: "Inter", sans-serif;
+}
+```
+
+**Customization**: Use Google Fonts or system fonts:
+
+<Steps>
+  <Step title="Choose a Font">
+    Browse [Google Fonts](https://fonts.google.com/) and select a font (e.g., Poppins, Roboto, Montserrat)
+  </Step>
+
+  <Step title="Import the Font">
+    Add the import to your HTML head or CSS:
+
+    ```html
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" 
+          rel="stylesheet">
+    ```
+  </Step>
+
+  <Step title="Update CSS">
+    Change the font-family in styles.css:
+
+    ```css
+    body {
+        font-family: "Poppins", sans-serif;
+    }
+    ```
+  </Step>
+</Steps>
+
+### Font Sizes
+
+Key font size classes used:
+
+```html
+<!-- Header title -->
+text-3xl font-bold
+
+<!-- Modal titles -->
+text-2xl font-bold
+
+<!-- Section headings -->
+text-lg font-semibold
+
+<!-- Body text -->
+text-sm or text-base
+```
+
+Adjust any of these using Tailwind's typography scale (text-xs, text-sm, text-base, text-lg, text-xl, text-2xl, etc.).
+
+## Component Customization
+
+### Card Hover Effects
+
+Review cards have hover animations:
+
+```css
+/* From src/css/styles.css:7-14 */
+.card-hover {
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    will-change: transform;
+}
+.card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 
+                0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+```
+
+**Customization Options**:
+
+```css
+/* Stronger lift effect */
+.card-hover:hover {
+    transform: translateY(-8px) scale(1.02);
+}
+
+/* Subtle glow effect */
+.card-hover:hover {
+    box-shadow: 0 0 20px rgba(147, 51, 234, 0.3);
+}
+
+/* Rotate on hover */
+.card-hover:hover {
+    transform: translateY(-4px) rotate(2deg);
+}
+```
+
+### Star Rating System
+
+Customize star colors and behavior:
+
+```css
+/* From src/css/styles.css:19-24 */
+.star-filled {
+    color: #fbbf24; /* Amber color */
+}
+.star-empty {
+    color: #d1d5db; /* Gray color */
+}
+```
+
+**Customization**: Use different colors or add effects:
+
+```css
+/* Gold stars */
+.star-filled {
+    color: #ffd700;
+    text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+}
+
+/* Red hearts instead */
+.star-filled {
+    color: #ef4444;
+}
+/* Also update HTML to use heart icons */
+<i class="fas fa-heart"></i>
+```
+
+### Modal Styling
+
+Modals use backdrop blur and rounded corners:
+
+```css
+/* From src/css/styles.css:4-6 */
+.modal-backdrop {
+    backdrop-filter: blur(8px);
+}
+```
+
+**Customization**:
+
+```css
+/* Stronger blur */
+.modal-backdrop {
+    backdrop-filter: blur(16px);
+    background-color: rgba(0, 0, 0, 0.6);
+}
+
+/* Less blur, darker background */
+.modal-backdrop {
+    backdrop-filter: blur(4px);
+    background-color: rgba(0, 0, 0, 0.8);
+}
+```
+
+### Border Radius
+
+The app uses rounded corners throughout. Standard values:
+
+- `rounded-xl` (12px) - Cards, buttons, inputs
+- `rounded-2xl` (16px) - Modals, panels
+- `rounded-3xl` (24px) - Large modals
+- `rounded-full` - Filter buttons, circular elements
+
+**Global customization** via Tailwind config:
+
+```javascript
+// tailwind.config.js (create if doesn't exist)
+module.exports = {
+  theme: {
+    extend: {
+      borderRadius: {
+        'xl': '1rem',
+        '2xl': '1.5rem',
+        '3xl': '2rem',
+      }
+    }
+  }
+}
+```
+
+## Layout Customization
+
+### Grid Columns
+
+Reviews display in a responsive grid:
+
+```html
+<!-- From public/index.html:61 -->
+<div id="reviewsGrid" 
+     class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+```
+
+**Customization**:
+
+```html
+<!-- 2 columns on mobile, 3 on tablet, 4 on desktop -->
+class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+
+<!-- Single column on mobile, 2 on larger screens -->
+class="grid grid-cols-1 lg:grid-cols-2 gap-6"
+
+<!-- Larger gaps -->
+class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+```
+
+### Sidebar Width
+
+The statistics sidebar uses a 4-column layout:
+
+```html
+<!-- From public/index.html:29 -->
+<div class="grid lg:grid-cols-4 gap-8">
+    <div class="lg:col-span-3">
+        <!-- Main content -->
+    </div>
+    <div class="lg:col-span-1">
+        <!-- Sidebar -->
+    </div>
+</div>
+```
+
+**Customization** for wider sidebar:
+
+```html
+<!-- 5-column grid with 2-column sidebar -->
+<div class="grid lg:grid-cols-5 gap-8">
+    <div class="lg:col-span-3">
+        <!-- Main content -->
+    </div>
+    <div class="lg:col-span-2">
+        <!-- Wider sidebar -->
+    </div>
+</div>
+```
+
+## Behavior Customization
+
+### Animation Speeds
+
+Control transition durations:
+
+```css
+/* Card hover transition */
+transition: transform 0.18s ease, box-shadow 0.18s ease;
+
+/* Make faster */
+transition: transform 0.1s ease, box-shadow 0.1s ease;
+
+/* Make slower, smoother */
+transition: transform 0.3s ease-out, box-shadow 0.3s ease-out;
+```
+
+```html
+<!-- Filter button transitions -->
+<button class="filter-btn ... transition-all duration-200">
+
+<!-- Make instant -->
+class="filter-btn ... transition-all duration-0"
+
+<!-- Make slower -->
+class="filter-btn ... transition-all duration-500"
+```
+
+### Star Rating Interaction
+
+Modify star rating behavior in `src/js/modules/starrating.js:9-14`:
+
+```javascript
+stars.forEach((star, index) => {
+    star.addEventListener('click', () => this.setRating(reviewer, index + 1));
+    star.addEventListener('mouseover', () => this.highlightStars(reviewer, index + 1));
+    star.addEventListener('mouseout', () => this.resetStarHighlight(reviewer));
+});
+```
+
+**Customization**: Add double-click to clear rating:
+
+```javascript
+stars.forEach((star, index) => {
+    star.addEventListener('click', () => this.setRating(reviewer, index + 1));
+    star.addEventListener('dblclick', () => this.setRating(reviewer, 0));
+    star.addEventListener('mouseover', () => this.highlightStars(reviewer, index + 1));
+    star.addEventListener('mouseout', () => this.resetStarHighlight(reviewer));
+});
+```
+
+### Search Debouncing
+
+Currently, search happens on every keystroke. Add debouncing for performance:
+
+```javascript
+// In src/js/modules/search.js
+import { Utils } from './utils.js';
+
+export const Search = {
+    currentQuery: '',
+    debounceTimer: null,
+
+    init() {
+        const searchInput = document.getElementById('searchInput');
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(this.debounceTimer);
+            this.debounceTimer = setTimeout(() => {
+                this.handleSearch(e.target.value);
+            }, 300); // 300ms delay
+        });
+    },
+    // ... rest of the module
+};
+```
+
+## Icon Customization
+
+The app uses Font Awesome icons. Change icons by updating class names:
+
+### Common Icon Locations
+
+```html
+<!-- Header -->
+<i class="fas fa-utensils"></i> → Change to fa-pizza-slice, fa-hamburger, etc.
+
+<!-- Search -->
+<i class="fas fa-search"></i> → Change to fa-magnifying-glass, fa-filter, etc.
+
+<!-- Reviewers -->
+<i class="fas fa-user"></i> → Change to fa-user-circle, fa-user-astronaut, etc.
+
+<!-- Ratings -->
+<i class="fas fa-star"></i> → Change to fa-heart, fa-thumbs-up, etc.
+```
+
+Browse all available icons at [Font Awesome Icons](https://fontawesome.com/icons).
+
+## Advanced Customization
+
+### Adding Dark Mode
+
+<Steps>
+  <Step title="Add Dark Mode Classes">
+    Tailwind supports dark mode. Add dark: prefixes:
+
+    ```html
+    <div class="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+    ```
+  </Step>
+
+  <Step title="Enable in Tailwind Config">
+    Create `tailwind.config.js`:
+
+    ```javascript
+    module.exports = {
+      darkMode: 'class', // or 'media'
+      // ... rest of config
+    }
+    ```
+  </Step>
+
+  <Step title="Add Toggle Button">
+    Create a dark mode toggle in the header:
+
+    ```javascript
+    // Toggle dark mode
+    function toggleDarkMode() {
+        document.documentElement.classList.toggle('dark');
+        localStorage.setItem('darkMode', 
+            document.documentElement.classList.contains('dark'));
+    }
+    ```
+  </Step>
+</Steps>
+
+### Custom Reviewer Names
+
+Change "Gian" and "Yami" throughout:
+
+<Steps>
+  <Step title="Find All References">
+    Search for "gian" and "yami" in:
+    - `public/index.html`
+    - `src/js/modules/modal.js`
+    - `src/js/modules/starrating.js`
+  </Step>
+
+  <Step title="Update Display Names">
+    Change HTML labels and headings:
+
+    ```html
+    <h4 class="font-semibold text-blue-800">
+        <i class="fas fa-user mr-2"></i>Alex
+    </h4>
+    ```
+  </Step>
+
+  <Step title="Update JavaScript References">
+    Keep data structure keys the same (`gian`, `yami`) but update display logic:
+
+    ```javascript
+    const name = reviewer === 'gian' ? 'Alex' : 'Jordan';
+    ```
+  </Step>
+</Steps>
+
+### Adding More Reviewers
+
+To add a third reviewer:
+
+<Steps>
+  <Step title="Update HTML Form">
+    Add a third reviewer section in the modal form (index.html:215):
+
+    ```html
+    <div class="bg-green-50 p-4 rounded-xl">
+        <div class="flex items-center justify-between mb-3">
+            <h4 class="font-semibold text-green-800">
+                <i class="fas fa-user mr-2"></i>Chris
+            </h4>
+            <label class="flex items-center">
+                <input type="checkbox" id="chrisActive" checked class="mr-2" />
+                <span class="text-sm">Incluir reseña</span>
+            </label>
+        </div>
+        <!-- Add rating and review fields -->
+    </div>
+    ```
+  </Step>
+
+  <Step title="Update StarRating Module">
+    Add Chris to the ratings object (starrating.js:2):
+
+    ```javascript
+    ratings: { gian: 0, yami: 0, chris: 0 }
+    ```
+  </Step>
+
+  <Step title="Update Form Handler">
+    Add Chris logic to form submission (form.js:26-50):
+
+    ```javascript
+    const chrisActive = document.getElementById('chrisActive').checked;
+    
+    if (chrisActive) {
+        reviewData.reviewers.chris = {
+            rating: StarRating.ratings.chris,
+            review: document.getElementById('chrisReview').value
+        };
+    }
+    ```
+  </Step>
+
+  <Step title="Update Display Logic">
+    Modify modal.js to display the third reviewer's data when viewing reviews.
+  </Step>
+</Steps>
+
+## Custom CSS Variables
+
+For more maintainable theming, use CSS custom properties:
+
+```css
+/* Add to styles.css */
+:root {
+    --primary-color: #9333ea;
+    --secondary-color: #db2777;
+    --accent-color: #f97316;
+    --text-dark: #1f2937;
+    --text-light: #6b7280;
+    --bg-light: #f9fafb;
+}
+
+/* Use in styles */
+.gradient-text {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.filter-btn.active {
+    background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+}
+```
+
+Now you can change the entire color scheme by updating the `:root` variables.
+
+## Performance Optimization
+
+### Reduce Animation Complexity
+
+For better mobile performance:
+
+```css
+/* Simpler hover effect */
+.card-hover:hover {
+    transform: translateY(-2px); /* Less movement */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Simpler shadow */
+}
+```
+
+### Lazy Load Images
+
+Add lazy loading to review images in the UI rendering logic:
+
+```javascript
+<img src="${review.photo}" 
+     loading="lazy"
+     alt="${Utils.escapeHtml(review.dish)}" />
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Add Reviews" icon="plus" href="/guides/adding-reviews">
+    Start adding reviews with your customized interface
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/development/modules">
+    Explore the complete JavaScript module documentation
+  </Card>
+</CardGroup>

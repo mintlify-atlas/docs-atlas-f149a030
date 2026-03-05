@@ -1,0 +1,168 @@
+---
+title: Introduction
+description: Welcome to Reseñas Gastronómicas - A beautiful web application for tracking culinary adventures
+---
+
+# Welcome to Reseñas Gastronómicas
+
+Reseñas Gastronómicas is an elegant web application designed to help food enthusiasts record and manage reviews of their culinary experiences. Built specifically to track the gastronomic adventures of Gian & Yami, this app combines modern web technologies with a beautiful, responsive interface.
+
+## What is Reseñas Gastronómicas?
+
+Reseñas Gastronómicas (Gastronomic Reviews) is a real-time review management system that allows multiple reviewers to rate and comment on dishes from different restaurants. Each review captures:
+
+- Restaurant name and dish details
+- Individual ratings (1-10 scale) from multiple diners
+- Personal reviews and comments from each diner
+- Photos of the dishes
+- Visit dates and timestamps
+
+<Note>
+This project was developed as a technical showcase, created entirely with AI assistance using multiple platforms including ChatGPT, Gemini, DeepSeek, and Claude AI for different aspects of the development.
+</Note>
+
+## Who Is It For?
+
+**Primary Users: Gian & Yami**
+
+The application is built around tracking the culinary adventures of two food enthusiasts - Gian and Yami. Each reviewer can:
+
+- Add their individual ratings and reviews for each dish
+- Track their personal preferences and taste patterns
+- Compare perspectives on the same dining experiences
+- Build a shared history of memorable meals
+
+**Perfect For:**
+
+- Couples who love dining out together
+- Food bloggers documenting their experiences
+- Friends building a shared culinary memory bank
+- Anyone wanting to remember and track restaurant experiences
+
+## Key Features
+
+### Real-Time Synchronization
+
+Powered by Firebase Firestore, all reviews sync instantly across devices. Add a review from your phone at the restaurant, and it appears immediately on your desktop at home.
+
+### Dual Reviewer System
+
+The application supports two reviewers (Gian and Yami) with independent ratings and reviews:
+
+```javascript
+reviewers: {
+  gian: { 
+    rating: 9, 
+    review: "¡Increíble! La masa estaba perfecta y los ingredientes súper frescos." 
+  },
+  yami: { 
+    rating: 8, 
+    review: "Me encantó, aunque le faltó un poquito más de queso para mi gusto." 
+  }
+}
+```
+
+### Beautiful, Modern Interface
+
+Designed with Tailwind CSS and featuring:
+
+- Responsive design that works on all devices
+- Gradient backgrounds and glassmorphism effects
+- Smooth animations and transitions
+- Star rating system (1-10 scale)
+- Photo support for dish images
+
+### Powerful Search & Filtering
+
+Quickly find reviews using:
+
+- **Search bar**: Search by restaurant name, dish name, or review content
+- **Restaurant filters**: Filter reviews by specific restaurants
+- **Real-time filtering**: Results update as you type
+
+### Statistics Dashboard
+
+Track your dining patterns with:
+
+- Total review count and overall average rating
+- Best and worst rated dishes
+- Featured dish of the month
+- Per-reviewer statistics
+
+## Technology Stack
+
+Reseñas Gastronómicas is built with modern web technologies:
+
+<CardGroup cols={2}>
+  <Card title="Firebase" icon="fire">
+    Real-time database (Firestore) for instant synchronization and data persistence
+  </Card>
+  <Card title="Tailwind CSS" icon="paintbrush">
+    Utility-first CSS framework for rapid, responsive UI development
+  </Card>
+  <Card title="Vanilla JavaScript" icon="js">
+    Clean, modular ES6+ JavaScript with no heavy framework dependencies
+  </Card>
+  <Card title="Font Awesome" icon="icons">
+    Beautiful icons for enhanced visual communication
+  </Card>
+</CardGroup>
+
+## Application Structure
+
+The application follows a modular architecture:
+
+```
+reseñas-gastronomicas/
+├── public/
+│   └── index.html          # Main HTML file
+├── src/
+│   ├── css/
+│   │   └── styles.css      # Custom styles
+│   └── js/
+│       ├── app.js          # Application entry point
+│       ├── components/
+│       │   └── firebase.js # Firebase service layer
+│       └── modules/
+│           ├── datastore.js   # Data management
+│           ├── ui.js          # UI rendering
+│           ├── form.js        # Form handling
+│           ├── search.js      # Search functionality
+│           ├── stats.js       # Statistics
+│           ├── filters.js     # Filtering logic
+│           ├── modal.js       # Modal dialogs
+│           ├── starrating.js  # Star rating component
+│           └── utils.js       # Utility functions
+└── package.json
+```
+
+<Tip>
+Each module is designed to handle a specific responsibility, making the codebase easy to understand, maintain, and extend.
+</Tip>
+
+## What's Next?
+
+Ready to get started? Here are the next steps:
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get the app running in 5 minutes
+  </Card>
+  <Card title="Installation Guide" icon="download" href="/installation">
+    Detailed setup instructions and configuration
+  </Card>
+</CardGroup>
+
+## Browser Compatibility
+
+Reseñas Gastronómicas works on all modern browsers:
+
+- Chrome (latest 2 versions)
+- Firefox (latest 2 versions)
+- Safari (latest 2 versions)
+- Edge (latest 2 versions)
+- Mobile browsers (iOS and Android)
+
+---
+
+**¿Disfrutas de la buena comida? ¡Nosotros también! 🍕🍣🍔**

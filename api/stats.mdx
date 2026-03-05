@@ -1,0 +1,472 @@
+---
+title: 'Stats'
+description: 'Statistics module for calculating and displaying review analytics including best/worst dishes and averages'
+---
+
+## Overview
+
+The Stats module calculates and displays comprehensive statistics about reviews, including best/worst dishes, recent highlights, total review counts, and overall averages. It provides real-time analytics updates.
+
+## Methods
+
+### init()
+
+Initializes the statistics module and performs initial calculation.
+
+```javascript
+Stats.init();
+```
+
+**Behavior:**
+- Calls `update()` to calculate and display initial statistics
+
+**Example:**
+```javascript
+import { Stats } from './modules/stats.js';
+
+Stats.init();
+```
+
+---
+
+### update()
+
+Recalculates and updates all statistics display.
+
+```javascript
+Stats.update();
+```
+
+**Calculated Statistics:**
+- Total review count
+- Overall average rating
+- Best dish (highest average rating)
+- Worst dish (lowest average rating)
+- Recent best dish (last 30 days)
+
+**Behavior:**
+- Gets current reviews from DataStore
+- Shows "No hay datos aún" if no reviews exist
+- Calculates all statistics
+- Updates `#statsContent` with formatted HTML
+
+**Example:**
+```javascript
+// Update stats after data changes
+Stats.update();
+```
+
+---
+
+### getBestDish(reviews)
+
+Finds the dish with the highest average rating.
+
+```javascript
+const best = Stats.getBestDish(reviews);
+```
+
+<ParamField path="reviews" type="Array<Review>" required>
+  Array of review objects
+</ParamField>
+
+<ResponseField name="review" type="Review">
+  Review object with the highest average rating
+</ResponseField>
+
+**Algorithm:**
+- Uses `Array.reduce()` to find maximum
+- Compares using `Utils.calculateAverageRating()`
+- Returns the review with highest rating
+
+**Example:**
+```javascript
+const reviews = DataStore.reviews;
+const bestDish = Stats.getBestDish(reviews);
+
+console.log(`Best: ${bestDish.dish} at ${bestDish.restaurant}`);
+console.log(`Rating: ${Utils.calculateAverageRating(bestDish)}/10`);
+```
+
+---
+
+### getWorstDish(reviews)
+
+Finds the dish with the lowest average rating.
+
+```javascript
+const worst = Stats.getWorstDish(reviews);
+```
+
+<ParamField path="reviews" type="Array<Review>" required>
+  Array of review objects
+</ParamField>
+
+<ResponseField name="review" type="Review">
+  Review object with the lowest average rating
+</ResponseField>
+
+**Algorithm:**
+- Uses `Array.reduce()` to find minimum
+- Compares using `Utils.calculateAverageRating()`
+- Returns the review with lowest rating
+
+**Example:**
+```javascript
+const worstDish = Stats.getWorstDish(reviews);
+
+console.log(`Worst: ${worstDish.dish} at ${worstDish.restaurant}`);
+console.log(`Rating: ${Utils.calculateAverageRating(worstDish)}/10`);
+```
+
+---
+
+### getRecentBest(reviews)
+
+Finds the best dish from the last 30 days.
+
+```javascript
+const recentBest = Stats.getRecentBest(reviews);
+```
+
+<ParamField path="reviews" type="Array<Review>" required>
+  Array of review objects
+</ParamField>
+
+<ResponseField name="review" type="Review">
+  Review object with highest rating from last 30 days, or first review if none found
+</ResponseField>
+
+**Algorithm:**
+1. Calculate date 30 days ago
+2. Filter reviews from last 30 days using `Utils.parseDate()`
+3. Find review with highest rating in filtered set
+4. Falls back to first review if no recent reviews exist
+
+**Example:**
+```javascript
+const recentBest = Stats.getRecentBest(reviews);
+
+console.log(`Recent Best: ${recentBest.dish}`);
+console.log(`Date: ${recentBest.date}`);
+console.log(`Rating: ${Utils.calculateAverageRating(recentBest)}/10`);
+```
+
+**Date Filtering:**
+```javascript
+const now = new Date();
+const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30));
+
+const recentReviews = reviews.filter(review => {
+  const reviewDate = Utils.parseDate(review.date);
+  return reviewDate >= thirtyDaysAgo;
+});
+```
+
+---
+
+### getOverallAverage(reviews)
+
+Calculates the overall average rating across all reviews and reviewers.
+
+```javascript
+const avg = Stats.getOverallAverage(reviews);
+```
+
+<ParamField path="reviews" type="Array<Review>" required>
+  Array of review objects
+</ParamField>
+
+<ResponseField name="average" type="string">
+  Average rating formatted to 1 decimal place (e.g., "8.5")
+</ResponseField>
+
+**Algorithm:**
+1. Extract all individual ratings from all reviewers
+2. Calculate sum of all ratings
+3. Divide by total number of ratings
+4. Format to 1 decimal place
+
+**Example:**
+```javascript
+const avgRating = Stats.getOverallAverage(reviews);
+console.log(`Overall Average: ${avgRating}/10`);
+```
+
+**Implementation:**
+```javascript
+const allRatings = reviews.flatMap(review =>
+  Object.values(review.reviewers).map(r => r.rating)
+);
+const sum = allRatings.reduce((a, b) => a + b, 0);
+return (sum / allRatings.length).toFixed(1);
+```
+
+## Statistics Display
+
+The `update()` method generates HTML with the following sections:
+
+### Total Reviews Section
+
+```html
+<div class="text-center mb-6">
+  <div class="text-3xl font-bold text-purple-600">{totalReviews}</div>
+  <div class="text-sm text-gray-600">Reseñas totales</div>
+  <div class="text-lg font-semibold text-gray-700 mt-1">{avgRating}/10</div>
+  <div class="text-xs text-gray-500">Promedio general</div>
+</div>
+```
+
+### Best Dish Card
+
+```html
+<div class="bg-green-50 rounded-xl p-4 mb-4">
+  <div class="flex items-center mb-2">
+    <i class="fas fa-crown text-yellow-500 mr-2"></i>
+    <h4 class="font-bold text-green-800">Mejor Plato</h4>
+  </div>
+  <div class="text-sm">
+    <div class="font-semibold text-green-700">{dish}</div>
+    <div class="text-green-600">{restaurant}</div>
+    <div class="flex items-center mt-1">
+      <i class="fas fa-star text-yellow-400 mr-1"></i>
+      <span class="font-bold">{rating}/10</span>
+    </div>
+  </div>
+</div>
+```
+
+### Worst Dish Card
+
+```html
+<div class="bg-red-50 rounded-xl p-4 mb-4">
+  <div class="flex items-center mb-2">
+    <i class="fas fa-thumbs-down text-red-500 mr-2"></i>
+    <h4 class="font-bold text-red-800">Peor Plato</h4>
+  </div>
+  <div class="text-sm">
+    <div class="font-semibold text-red-700">{dish}</div>
+    <div class="text-red-600">{restaurant}</div>
+    <div class="flex items-center mt-1">
+      <i class="fas fa-star text-yellow-400 mr-1"></i>
+      <span class="font-bold">{rating}/10</span>
+    </div>
+  </div>
+</div>
+```
+
+### Recent Best Card
+
+```html
+<div class="bg-blue-50 rounded-xl p-4">
+  <div class="flex items-center mb-2">
+    <i class="fas fa-calendar-star text-blue-500 mr-2"></i>
+    <h4 class="font-bold text-blue-800">Destacado Reciente</h4>
+  </div>
+  <div class="text-sm">
+    <div class="font-semibold text-blue-700">{dish}</div>
+    <div class="text-blue-600">{restaurant}</div>
+    <div class="flex items-center justify-between mt-1">
+      <div class="flex items-center">
+        <i class="fas fa-star text-yellow-400 mr-1"></i>
+        <span class="font-bold">{rating}/10</span>
+      </div>
+      <span class="text-xs text-blue-500">{date}</span>
+    </div>
+  </div>
+</div>
+```
+
+## HTML Structure Required
+
+```html
+<div id="statsContent">
+  <!-- Statistics content dynamically generated here -->
+</div>
+```
+
+## Empty State
+
+When no reviews exist:
+
+```html
+<p class="text-gray-500 text-center">No hay datos aún</p>
+```
+
+## Color Scheme
+
+<ParamField path="Best Dish">
+  - Background: `bg-green-50`
+  - Text: `text-green-700`, `text-green-800`
+  - Icon: Yellow crown
+</ParamField>
+
+<ParamField path="Worst Dish">
+  - Background: `bg-red-50`
+  - Text: `text-red-700`, `text-red-800`
+  - Icon: Red thumbs down
+</ParamField>
+
+<ParamField path="Recent Best">
+  - Background: `bg-blue-50`
+  - Text: `text-blue-700`, `text-blue-800`
+  - Icon: Blue calendar star
+</ParamField>
+
+<ParamField path="Overall Stats">
+  - Primary: `text-purple-600`
+  - Secondary: `text-gray-600`, `text-gray-700`
+</ParamField>
+
+## Integration with UI Module
+
+Stats automatically update when reviews change:
+
+```javascript
+// In UI.renderReviews()
+Stats.update();
+
+// On real-time updates
+document.addEventListener('reviewsUpdated', () => {
+  Stats.update();
+});
+```
+
+## Complete Usage Example
+
+```javascript
+import { Stats } from './modules/stats.js';
+import { DataStore } from './modules/datastore.js';
+
+// Initialize
+Stats.init();
+
+// Manual update
+Stats.update();
+
+// Get individual statistics
+const reviews = DataStore.reviews;
+
+const bestDish = Stats.getBestDish(reviews);
+console.log('Best:', bestDish.dish, bestDish.restaurant);
+
+const worstDish = Stats.getWorstDish(reviews);
+console.log('Worst:', worstDish.dish, worstDish.restaurant);
+
+const recentBest = Stats.getRecentBest(reviews);
+console.log('Recent Best:', recentBest.dish);
+
+const avgRating = Stats.getOverallAverage(reviews);
+console.log('Average:', avgRating);
+```
+
+## Advanced Example
+
+```javascript
+// Create custom stats display
+function displayCustomStats() {
+  const reviews = DataStore.reviews;
+  
+  if (reviews.length === 0) {
+    console.log('No reviews yet');
+    return;
+  }
+  
+  console.log('=== Statistics ===');
+  console.log(`Total Reviews: ${reviews.length}`);
+  console.log(`Average Rating: ${Stats.getOverallAverage(reviews)}/10`);
+  
+  const best = Stats.getBestDish(reviews);
+  console.log(`\nBest Dish:`);
+  console.log(`  ${best.dish} - ${best.restaurant}`);
+  console.log(`  Rating: ${Utils.calculateAverageRating(best)}/10`);
+  
+  const worst = Stats.getWorstDish(reviews);
+  console.log(`\nWorst Dish:`);
+  console.log(`  ${worst.dish} - ${worst.restaurant}`);
+  console.log(`  Rating: ${Utils.calculateAverageRating(worst)}/10`);
+  
+  const recent = Stats.getRecentBest(reviews);
+  console.log(`\nRecent Highlight:`);
+  console.log(`  ${recent.dish} - ${recent.restaurant}`);
+  console.log(`  Date: ${recent.date}`);
+  console.log(`  Rating: ${Utils.calculateAverageRating(recent)}/10`);
+}
+
+// Display stats
+displayCustomStats();
+```
+
+## Rating Calculations
+
+All rating calculations use `Utils.calculateAverageRating()`:
+
+```javascript
+// Example review
+const review = {
+  reviewers: {
+    gian: { rating: 9, review: "Great!" },
+    yami: { rating: 7, review: "Good" }
+  }
+};
+
+// Calculate average
+const avg = Utils.calculateAverageRating(review);
+// Returns: "8.0" (formatted string)
+```
+
+## Dependencies
+
+<ParamField path="DataStore">
+  For accessing current reviews data
+</ParamField>
+
+<ParamField path="Utils">
+  For `calculateAverageRating()` and `parseDate()` functions
+</ParamField>
+
+## Performance Notes
+
+- Statistics recalculated on every `update()` call
+- Uses efficient `reduce()` operations
+- No caching (assumes small dataset)
+- For large datasets, consider memoization
+
+## Future Enhancements
+
+Possible additions:
+
+```javascript
+// Most reviewed restaurant
+getMostReviewedRestaurant(reviews) {
+  const counts = {};
+  reviews.forEach(r => {
+    counts[r.restaurant] = (counts[r.restaurant] || 0) + 1;
+  });
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])[0];
+}
+
+// Average by restaurant
+getRestaurantAverages(reviews) {
+  const byRestaurant = {};
+  reviews.forEach(review => {
+    const restaurant = review.restaurant;
+    if (!byRestaurant[restaurant]) {
+      byRestaurant[restaurant] = [];
+    }
+    byRestaurant[restaurant].push(
+      parseFloat(Utils.calculateAverageRating(review))
+    );
+  });
+  
+  return Object.entries(byRestaurant).map(([restaurant, ratings]) => ({
+    restaurant,
+    average: (ratings.reduce((a,b) => a+b) / ratings.length).toFixed(1)
+  }));
+}
+```
+
+## Source Code
+
+Source: `workspace/source/src/js/modules/stats.js:1`

@@ -1,0 +1,378 @@
+---
+title: 'DataStore'
+description: 'Central data management module for handling reviews with Firebase integration and real-time updates'
+---
+
+## Overview
+
+The DataStore module is the central data management layer for Reseñas Gastronómicas. It handles all review data operations, provides Firebase integration for cloud storage, and manages real-time data synchronization.
+
+## Module Structure
+
+The DataStore is implemented as a singleton object with the following properties:
+
+<ParamField path="reviews" type="Array<Review>">
+  Array of all review objects loaded from Firebase or sample data
+</ParamField>
+
+<ParamField path="isLoading" type="boolean">
+  Loading state indicator for async operations
+</ParamField>
+
+<ParamField path="unsubscribe" type="Function | null">
+  Firebase real-time listener cleanup function
+</ParamField>
+
+## Methods
+
+### init()
+
+Initializes the DataStore module, sets up Firebase connection, loads reviews, and establishes real-time listeners.
+
+```javascript
+await DataStore.init();
+```
+
+<ResponseField name="void" type="Promise<void>">
+  Returns a promise that resolves when initialization is complete
+</ResponseField>
+
+**Process:**
+1. Initializes Firebase service
+2. Loads all reviews from Firebase
+3. Sets up real-time data listener
+
+**Example:**
+```javascript
+import { DataStore } from './modules/datastore.js';
+
+// Initialize on app startup
+await DataStore.init();
+console.log(`Loaded ${DataStore.reviews.length} reviews`);
+```
+
+---
+
+### loadReviews()
+
+Loads all reviews from Firebase. Falls back to sample data if Firebase fails.
+
+```javascript
+await DataStore.loadReviews();
+```
+
+<ResponseField name="void" type="Promise<void>">
+  Returns a promise that resolves when reviews are loaded
+</ResponseField>
+
+**Behavior:**
+- Sets `isLoading` to `true` during load
+- Fetches reviews from FirebaseService
+- On error, loads sample data as fallback
+- Sets `isLoading` to `false` when complete
+
+**Example:**
+```javascript
+// Manually reload reviews
+await DataStore.loadReviews();
+```
+
+---
+
+### setupRealTimeListener()
+
+Establishes Firebase real-time listener for automatic data synchronization.
+
+```javascript
+DataStore.setupRealTimeListener();
+```
+
+**Behavior:**
+- Cancels previous listener if exists
+- Creates new Firebase listener
+- Updates `reviews` array on changes
+- Dispatches `reviewsUpdated` custom event to document
+
+**Event Dispatched:**
+```javascript
+document.dispatchEvent(new CustomEvent('reviewsUpdated'));
+```
+
+**Example:**
+```javascript
+// Listen for review updates
+document.addEventListener('reviewsUpdated', () => {
+  console.log('Reviews updated!', DataStore.reviews);
+});
+```
+
+---
+
+### addReview(review)
+
+Adds a new review to Firebase.
+
+```javascript
+const newReview = await DataStore.addReview(reviewData);
+```
+
+<ParamField path="review" type="object" required>
+  Review object to add
+  
+  <ParamField path="restaurant" type="string" required>
+    Restaurant name
+  </ParamField>
+  
+  <ParamField path="dish" type="string" required>
+    Dish name
+  </ParamField>
+  
+  <ParamField path="photo" type="string" required>
+    Photo URL
+  </ParamField>
+  
+  <ParamField path="date" type="string" required>
+    Date in DD/MM/YYYY format
+  </ParamField>
+  
+  <ParamField path="reviewers" type="object" required>
+    Reviewer data object with reviewer names as keys
+  </ParamField>
+</ParamField>
+
+<ResponseField name="review" type="Promise<object>">
+  Returns the newly created review with assigned ID
+</ResponseField>
+
+**Example:**
+```javascript
+const newReview = await DataStore.addReview({
+  restaurant: "El Emperador",
+  dish: "Pizza Margherita",
+  photo: "https://example.com/photo.jpg",
+  date: "15/09/2025",
+  reviewers: {
+    gian: { rating: 9, review: "¡Increíble! La masa estaba perfecta." },
+    yami: { rating: 8, review: "Me encantó." }
+  }
+});
+
+console.log('Created review:', newReview.id);
+```
+
+---
+
+### updateReview(id, review)
+
+Updates an existing review in Firebase.
+
+```javascript
+const updated = await DataStore.updateReview(id, reviewData);
+```
+
+<ParamField path="id" type="string" required>
+  Review ID to update
+</ParamField>
+
+<ParamField path="review" type="object" required>
+  Updated review data (same structure as addReview)
+</ParamField>
+
+<ResponseField name="review" type="Promise<object>">
+  Returns the updated review object
+</ResponseField>
+
+**Example:**
+```javascript
+const updated = await DataStore.updateReview('review-123', {
+  restaurant: "El Emperador",
+  dish: "Pizza Napolitana",
+  photo: "https://example.com/photo.jpg",
+  date: "16/09/2025",
+  reviewers: {
+    gian: { rating: 10, review: "¡Perfecto!" }
+  }
+});
+```
+
+---
+
+### deleteReview(id)
+
+Deletes a review from Firebase.
+
+```javascript
+await DataStore.deleteReview(id);
+```
+
+<ParamField path="id" type="string" required>
+  Review ID to delete
+</ParamField>
+
+<ResponseField name="success" type="Promise<boolean>">
+  Returns true if deletion was successful
+</ResponseField>
+
+**Example:**
+```javascript
+try {
+  await DataStore.deleteReview('review-123');
+  console.log('Review deleted successfully');
+} catch (error) {
+  console.error('Failed to delete review:', error);
+}
+```
+
+---
+
+### getReviews(filter)
+
+Retrieves reviews with optional restaurant filter.
+
+```javascript
+const reviews = DataStore.getReviews('all');
+```
+
+<ParamField path="filter" type="string" default="'all'">
+  Filter by restaurant name, or 'all' for all reviews
+</ParamField>
+
+<ResponseField name="reviews" type="Array<Review>">
+  Filtered array of review objects
+</ResponseField>
+
+**Example:**
+```javascript
+// Get all reviews
+const allReviews = DataStore.getReviews('all');
+
+// Get reviews for specific restaurant
+const emperadorReviews = DataStore.getReviews('El Emperador');
+```
+
+---
+
+### getRestaurants()
+
+Returns a unique list of all restaurant names.
+
+```javascript
+const restaurants = DataStore.getRestaurants();
+```
+
+<ResponseField name="restaurants" type="Array<string>">
+  Array of unique restaurant names
+</ResponseField>
+
+**Example:**
+```javascript
+const restaurants = DataStore.getRestaurants();
+console.log('Restaurants:', restaurants);
+// Output: ["El Emperador", "La Trattoría", "Burger House"]
+```
+
+---
+
+### searchReviews(query)
+
+Searches reviews by restaurant, dish, or review content.
+
+```javascript
+const results = DataStore.searchReviews('pizza');
+```
+
+<ParamField path="query" type="string" required>
+  Search term (case-insensitive)
+</ParamField>
+
+<ResponseField name="results" type="Array<Review>">
+  Array of matching reviews
+</ResponseField>
+
+**Search Fields:**
+- Restaurant name
+- Dish name
+- Review text from all reviewers
+
+**Example:**
+```javascript
+// Search for pizza
+const pizzaReviews = DataStore.searchReviews('pizza');
+
+// Search returns all reviews if query is empty
+const all = DataStore.searchReviews('');
+```
+
+---
+
+### loadSampleData()
+
+Loads sample data as fallback when Firebase is unavailable.
+
+```javascript
+DataStore.loadSampleData();
+```
+
+**Behavior:**
+- Populates `reviews` array with hardcoded sample data
+- Ensures app remains functional without Firebase
+
+---
+
+### destroy()
+
+Cleans up resources and removes real-time listener.
+
+```javascript
+DataStore.destroy();
+```
+
+**Example:**
+```javascript
+// Cleanup on app shutdown
+window.addEventListener('beforeunload', () => {
+  DataStore.destroy();
+});
+```
+
+## Data Structure
+
+### Review Object
+
+```javascript
+{
+  id: "sample-1",
+  restaurant: "El Emperador",
+  dish: "Pizza Margherita",
+  photo: "https://images.unsplash.com/photo-xyz",
+  date: "15/09/2025",
+  reviewers: {
+    gian: { 
+      rating: 9, 
+      review: "¡Increíble! La masa estaba perfecta." 
+    },
+    yami: { 
+      rating: 8, 
+      review: "Me encantó, aunque le faltó más queso." 
+    }
+  }
+}
+```
+
+## Events
+
+### reviewsUpdated
+
+Dispatched when reviews data changes (add, update, delete).
+
+```javascript
+document.addEventListener('reviewsUpdated', () => {
+  // Handle reviews update
+  UI.renderReviews();
+  Stats.update();
+});
+```
+
+## Source Code
+
+Source: `workspace/source/src/js/modules/datastore.js:1`

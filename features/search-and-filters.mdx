@@ -1,0 +1,338 @@
+---
+title: Search and Filters
+description: Powerful search functionality and restaurant filtering system to help users find reviews quickly
+---
+
+## Overview
+
+Reseñas Gastronómicas provides a comprehensive search and filtering system that allows users to quickly find specific reviews by searching across multiple fields or filtering by restaurant.
+
+## Search Functionality
+
+The search system enables users to find reviews by searching restaurant names, dish names, or review content.
+
+### Search Module
+
+The Search module handles all search-related operations:
+
+```javascript
+export const Search = {
+    currentQuery: '',
+
+    init() {
+        const searchInput = document.getElementById('searchInput');
+        const clearBtn = document.getElementById('clearSearch');
+
+        searchInput.addEventListener('input', (e) => this.handleSearch(e.target.value));
+        clearBtn.addEventListener('click', () => this.clearSearch());
+    }
+};
+```
+
+### Real-Time Search
+
+Search results update in real-time as the user types:
+
+```javascript
+handleSearch(query) {
+    this.currentQuery = query.trim();
+    const clearBtn = document.getElementById('clearSearch');
+
+    if (this.currentQuery) {
+        clearBtn.classList.remove('hidden');
+    } else {
+        clearBtn.classList.add('hidden');
+    }
+
+    UI.renderReviews();
+}
+```
+
+<Tip>
+  The search is case-insensitive and searches across restaurant names, dish names, and all reviewer comments simultaneously.
+</Tip>
+
+### Multi-Field Search Implementation
+
+The DataStore module implements comprehensive search across multiple fields:
+
+```javascript
+searchReviews(query) {
+    if (!query) return this.reviews;
+
+    const searchTerm = query.toLowerCase();
+    return this.reviews.filter(review =>
+        review.restaurant.toLowerCase().includes(searchTerm) ||
+        review.dish.toLowerCase().includes(searchTerm) ||
+        Object.values(review.reviewers).some(reviewer =>
+            reviewer.review.toLowerCase().includes(searchTerm)
+        )
+    );
+}
+```
+
+**Search Fields:**
+- Restaurant name
+- Dish name
+- Individual reviewer comments (Gian and Yami)
+
+<Accordion title="Search Example">
+  If a user searches for "pizza", the system will return:
+  - Reviews where the restaurant name contains "pizza" (e.g., "Pizza Hut")
+  - Reviews where the dish name contains "pizza" (e.g., "Pizza Margherita")
+  - Reviews where any reviewer mentioned "pizza" in their comment
+</Accordion>
+
+### Clear Search
+
+Users can quickly clear the search query and return to the full list:
+
+```javascript
+clearSearch() {
+    document.getElementById('searchInput').value = '';
+    this.currentQuery = '';
+    document.getElementById('clearSearch').classList.add('hidden');
+    UI.renderReviews();
+}
+```
+
+<Note>
+  The clear button only appears when there is an active search query, providing a clean interface when not in use.
+</Note>
+
+## Restaurant Filters
+
+In addition to search, users can filter reviews by specific restaurants using dynamic filter buttons.
+
+### Filters Module
+
+The Filters module manages restaurant-based filtering:
+
+```javascript
+export const Filters = {
+    currentFilter: 'all',
+
+    init() {
+        this.update();
+    },
+
+    update() {
+        const restaurants = DataStore.getRestaurants();
+        const filtersContainer = document.getElementById('restaurantFilters');
+
+        filtersContainer.innerHTML = restaurants.map(restaurant =>
+            `<button data-filter="${Utils.escapeHtml(restaurant)}" 
+                     class="filter-btn px-4 py-2 rounded-full text-sm font-medium">
+                ${Utils.escapeHtml(restaurant)}
+            </button>`
+        ).join('');
+
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => 
+                this.filterByRestaurant(e.target.dataset.filter));
+        });
+    }
+};
+```
+
+### Dynamic Filter Generation
+
+Filter buttons are dynamically generated based on unique restaurants in the review database:
+
+```javascript
+getRestaurants() {
+    return [...new Set(this.reviews.map(r => r.restaurant))];
+}
+```
+
+This approach ensures:
+- Only restaurants with reviews appear as filters
+- Filter list updates automatically when new restaurants are added
+- No manual maintenance required
+
+### Applying Filters
+
+When a user clicks a filter button:
+
+```javascript
+filterByRestaurant(restaurant) {
+    this.currentFilter = restaurant;
+
+    // Remove active class from all buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+
+    // Add active class to selected button
+    const activeBtn = document.querySelector(`[data-filter="${restaurant}"]`);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+    }
+
+    UI.renderReviews();
+}
+```
+
+<Note>
+  Active filters are visually indicated with the `active` class, helping users understand which filter is currently applied.
+</Note>
+
+### Getting Filtered Reviews
+
+The DataStore provides a method to retrieve filtered reviews:
+
+```javascript
+getReviews(filter = 'all') {
+    return filter === 'all' 
+        ? this.reviews 
+        : this.reviews.filter(r => r.restaurant === filter);
+}
+```
+
+## Search + Filter Combination
+
+The system intelligently combines search queries with restaurant filters for powerful review discovery.
+
+### Combined Query Flow
+
+<Steps>
+  <Step title="User Input">
+    User enters a search term and/or selects a restaurant filter
+  </Step>
+  <Step title="Filter Application">
+    Reviews are first filtered by restaurant if a filter is active
+  </Step>
+  <Step title="Search Application">
+    The search query is then applied to the filtered results
+  </Step>
+  <Step title="UI Update">
+    The UI is updated to show only matching reviews
+  </Step>
+</Steps>
+
+### Example Usage
+
+```javascript
+// In the UI rendering logic
+let displayReviews = DataStore.getReviews(Filters.currentFilter);
+
+if (Search.currentQuery) {
+    displayReviews = DataStore.searchReviews(Search.currentQuery)
+        .filter(review => 
+            Filters.currentFilter === 'all' || 
+            review.restaurant === Filters.currentFilter
+        );
+}
+```
+
+## Security Considerations
+
+The filter system includes XSS protection through HTML escaping:
+
+```javascript
+escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+```
+
+<Warning>
+  Always escape user-generated content before inserting it into the DOM to prevent XSS attacks. This includes restaurant names and dish names that come from user input.
+</Warning>
+
+## User Experience Features
+
+<CardGroup cols={2}>
+  <Card title="Instant Results" icon="bolt">
+    Search results update instantly as you type with no lag
+  </Card>
+  <Card title="Visual Feedback" icon="eye">
+    Active filters are highlighted and the clear button appears when searching
+  </Card>
+  <Card title="Smart Filtering" icon="filter">
+    Combine search and filters for precise results
+  </Card>
+  <Card title="Auto-Update" icon="sync">
+    Filter buttons update automatically as new restaurants are added
+  </Card>
+</CardGroup>
+
+## Performance Optimization
+
+The search and filter system is optimized for performance:
+
+### Efficient Array Operations
+
+```javascript
+// Uses native filter and includes for fast searching
+return this.reviews.filter(review =>
+    review.restaurant.toLowerCase().includes(searchTerm)
+);
+```
+
+### Minimal DOM Manipulation
+
+Filter buttons are only regenerated when the restaurant list changes, not on every search.
+
+### Event Delegation
+
+Filter buttons use individual event listeners but are efficiently managed:
+
+```javascript
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => this.filterByRestaurant(e.target.dataset.filter));
+});
+```
+
+## Integration with UI Module
+
+Both search and filters trigger UI updates through the `UI.renderReviews()` method:
+
+```javascript
+// After search or filter change
+UI.renderReviews();
+```
+
+This ensures:
+- Consistent rendering logic
+- Single source of truth for display state
+- Easy to maintain and extend
+
+## Best Practices
+
+<Accordion title="Debouncing Search Input">
+  For very large datasets, consider debouncing the search input to avoid excessive re-renders:
+  
+  ```javascript
+  let searchTimeout;
+  searchInput.addEventListener('input', (e) => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+          this.handleSearch(e.target.value);
+      }, 300);
+  });
+  ```
+</Accordion>
+
+<Accordion title="Preserving State">
+  The current search query and filter are stored in module state, allowing them to persist across UI updates:
+  
+  ```javascript
+  currentQuery: '',
+  currentFilter: 'all',
+  ```
+</Accordion>
+
+<Accordion title="Accessibility">
+  Ensure search inputs and filter buttons are keyboard accessible and have proper ARIA labels for screen readers.
+</Accordion>
+
+## Code Reference
+
+Key files for search and filtering:
+
+- `search.js:3-32` - Search module implementation
+- `filters.js:5-43` - Filter module implementation  
+- `datastore.js:71-90` - Search and filter data methods
+- `utils.js:13-17` - HTML escaping for security
