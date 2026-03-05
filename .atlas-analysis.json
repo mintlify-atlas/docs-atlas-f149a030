@@ -1,0 +1,101 @@
+{
+  "projectType": "saas",
+  "projectName": "Reseñas Gastronómicas",
+  "projectDescription": "A web application for managing and tracking gastronomic reviews with real-time updates, star ratings, and statistics.",
+  "theme": "almond",
+  "primaryColor": "#dd3821",
+  "lightColor": "#f2cec7",
+  "darkColor": "#f8c526",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/reviews",
+              "features/search-and-filters",
+              "features/statistics",
+              "features/star-rating"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Guides",
+        "groups": [
+          {
+            "group": "How-to Guides",
+            "pages": [
+              "guides/adding-reviews",
+              "guides/searching-reviews",
+              "guides/firebase-setup",
+              "guides/customization"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Development",
+        "groups": [
+          {
+            "group": "Architecture",
+            "pages": [
+              "development/architecture",
+              "development/modules",
+              "development/firebase-integration"
+            ]
+          },
+          {
+            "group": "Module Reference",
+            "pages": [
+              "api/datastore",
+              "api/ui",
+              "api/modal",
+              "api/starrating",
+              "api/search",
+              "api/stats"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Real-time review management with Firebase Firestore",
+    "Star rating system (1-10 scale)",
+    "Advanced search and filtering by restaurant or content",
+    "Statistics dashboard with best/worst dishes and averages",
+    "Photo upload support for dishes",
+    "Responsive design with Tailwind CSS",
+    "Modular JavaScript architecture"
+  ],
+  "publicApiSurface": [
+    "DataStore.addReview(review)",
+    "DataStore.updateReview(id, review)",
+    "DataStore.deleteReview(id)",
+    "DataStore.getReviews(filter)",
+    "DataStore.searchReviews(query)",
+    "DataStore.getRestaurants()",
+    "FirebaseService.getReviews()",
+    "FirebaseService.addReview(review)",
+    "FirebaseService.updateReview(id, review)",
+    "FirebaseService.deleteReview(id)",
+    "FirebaseService.onReviewsChange(callback)",
+    "UI.renderReviews()",
+    "Modal.showReviewDetail(review)",
+    "Modal.toggleAddModal()",
+    "StarRating.init()",
+    "Search.init()",
+    "Stats.update()"
+  ]
+}
