@@ -78,9 +78,13 @@
               "api/datastore",
               "api/ui",
               "api/modal",
+              "api/form",
               "api/starrating",
               "api/search",
-              "api/stats"
+              "api/filters",
+              "api/dropdown",
+              "api/stats",
+              "api/utils"
             ]
           }
         ]

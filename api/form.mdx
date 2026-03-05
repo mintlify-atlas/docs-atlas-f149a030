@@ -1,0 +1,241 @@
+---
+title: Form Module
+description: API reference for the Form module - handles review form submission and validation
+---
+
+# Form Module
+
+The **Form** module handles all form-related functionality for creating and editing reviews. It manages form submission, data collection, validation, and coordinates with other modules to persist review data.
+
+## Overview
+
+The Form module is responsible for:
+- Capturing form submission events
+- Collecting review data from form inputs
+- Managing loading states during submission
+- Coordinating with StarRating module for rating values
+- Saving or updating reviews through DataStore
+- Error handling and user feedback
+
+**Source**: `src/js/modules/form.js`
+
+## Public Methods
+
+### `init()`
+
+Initializes the form module by attaching event listeners to the review form.
+
+<ParamField path="none" type="void">
+  This method takes no parameters
+</ParamField>
+
+**Returns**: `void`
+
+**Usage**:
+
+```javascript
+// From src/js/app.js
+Form.init();
+```
+
+**Behavior**:
+- Finds the `reviewForm` element by ID
+- Attaches a submit event listener that calls `handleSubmit()`
+- Called during application initialization
+
+---
+
+### `handleSubmit(e)`
+
+Handles the form submission event, collects review data, and saves it to the database.
+
+<ParamField path="e" type="Event" required>
+  The form submission event object
+</ParamField>
+
+**Returns**: `Promise<void>`
+
+**Usage**:
+
+```javascript
+// Internal usage - called automatically on form submit
+// From src/js/modules/form.js:12
+async handleSubmit(e) {
+  e.preventDefault();
+  // ... form handling logic
+}
+```
+
+**Process Flow**:
+
+1. **Prevent Default**: Prevents the default form submission behavior
+2. **Loading State**: Disables submit button and shows loading spinner
+3. **Data Collection**: Gathers data from all form inputs
+4. **Reviewer Selection**: Only includes data for active reviewers (checked checkboxes)
+5. **Date Handling**: Uses current date if visit date is not specified
+6. **Save/Update**: Creates new review or updates existing one based on `editId`
+7. **Close Modal**: Closes the add/edit modal on success
+8. **Error Handling**: Shows alert on error and logs to console
+9. **Restore State**: Re-enables submit button regardless of outcome
+
+---
+
+## Form Data Structure
+
+The form collects the following data structure:
+
+```javascript
+// Review data object created by handleSubmit
+{
+  restaurant: "Restaurant Name",        // String (required)
+  dish: "Dish Name",                   // String (required)
+  photo: "https://image-url.com/...",  // String URL (required)
+  date: "05/03/2026",                  // String in DD/MM/YYYY format
+  reviewers: {
+    gian: {                            // Optional - only if gianActive checkbox is checked
+      rating: 9,                       // Number 0-10
+      review: "Review text"            // String
+    },
+    yami: {                            // Optional - only if yamiActive checkbox is checked
+      rating: 8,                       // Number 0-10
+      review: "Review text"            // String
+    }
+  }
+}
+```
+
+## Form Fields
+
+### Basic Information
+
+<ParamField path="restaurant" type="string" required>
+  Name of the restaurant (input with autocomplete dropdown)
+</ParamField>
+
+<ParamField path="dish" type="string" required>
+  Name of the dish being reviewed
+</ParamField>
+
+<ParamField path="photo" type="string (URL)" required>
+  URL to the dish photo
+</ParamField>
+
+<ParamField path="visitDate" type="string (date)">
+  Date of visit in YYYY-MM-DD format. If empty, current date is used.
+</ParamField>
+
+### Reviewer Data
+
+<ParamField path="gianActive" type="boolean">
+  Checkbox to include/exclude Gian's review. Default: checked
+</ParamField>
+
+<ParamField path="gianRating" type="number">
+  Gian's rating (1-10), managed by StarRating module
+</ParamField>
+
+<ParamField path="gianReview" type="string">
+  Gian's review text
+</ParamField>
+
+<ParamField path="yamiActive" type="boolean">
+  Checkbox to include/exclude Yami's review. Default: checked
+</ParamField>
+
+<ParamField path="yamiRating" type="number">
+  Yami's rating (1-10), managed by StarRating module
+</ParamField>
+
+<ParamField path="yamiReview" type="string">
+  Yami's review text
+</ParamField>
+
+## Edit Mode
+
+The form supports editing existing reviews through a special data attribute:
+
+```javascript
+// Set by Modal.openEditModal()
+form.dataset.editId = "review-id-123";
+```
+
+When `form.dataset.editId` is present:
+- Form calls `DataStore.updateReview(id, data)` instead of `addReview()`
+- Existing review data is pre-populated in form fields
+- Submit button text may change to "Update" instead of "Save"
+
+## Dependencies
+
+The Form module depends on:
+
+- **StarRating**: To get rating values (`StarRating.ratings.gian`, `StarRating.ratings.yami`)
+- **DataStore**: To save/update reviews (`DataStore.addReview()`, `DataStore.updateReview()`)
+- **Utils**: For date formatting (`Utils.formatDate()`)
+- **Modal**: To close the form modal after submission (`Modal.toggleAddModal()`)
+
+## Loading States
+
+During form submission:
+
+```javascript
+// Before submission
+submitBtn.disabled = true;
+submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Guardando...';
+
+// After completion (success or error)
+submitBtn.disabled = false;
+submitBtn.innerHTML = originalText; // Restored to "Guardar Reseña" or "Update"
+```
+
+## Error Handling
+
+The module handles errors gracefully:
+
+```javascript
+try {
+  // Submit review
+} catch (error) {
+  console.error('Error guardando reseña:', error);
+  alert('Error al guardar la reseña. Por favor, intenta de nuevo.');
+} finally {
+  // Always restore button state
+  submitBtn.disabled = false;
+  submitBtn.innerHTML = originalText;
+}
+```
+
+<Warning>
+Errors are currently displayed using browser `alert()`. In production, consider using a more user-friendly notification system.
+</Warning>
+
+## Validation
+
+Current validation is handled by HTML5 form validation:
+- Restaurant, dish, and photo fields are marked as `required`
+- Photo field has `type="url"` for URL validation
+- Visit date uses `type="date"` for date picker
+
+<Tip>
+Additional client-side validation can be added before the `try` block in `handleSubmit()` to check for valid ratings or review text.
+</Tip>
+
+## Usage Example
+
+```javascript
+// Initialize the form module
+import { Form } from './modules/form.js';
+
+// In your app initialization
+Form.init();
+
+// Form now handles submissions automatically
+// Users can fill the form and click "Guardar Reseña"
+// The form will collect data, save to Firebase, and close the modal
+```
+
+## Related Modules
+
+- [StarRating](/api/starrating) - Manages the rating input
+- [DataStore](/api/datastore) - Persists review data
+- [Modal](/api/modal) - Controls form visibility
+- [Utils](/api/utils) - Date formatting utilities

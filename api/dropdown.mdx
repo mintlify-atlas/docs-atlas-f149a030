@@ -1,0 +1,322 @@
+---
+title: Dropdown Module
+description: API reference for the Dropdown module - autocomplete restaurant selection
+---
+
+# Dropdown Module
+
+The **Dropdown** module provides autocomplete functionality for the restaurant input field. It displays a filterable list of previously used restaurants and allows users to quickly select from existing options or type a new restaurant name.
+
+## Overview
+
+The Dropdown module manages:
+- Displaying a dropdown list of restaurants
+- Filtering restaurants based on user input
+- Handling user selection from the dropdown
+- Showing/hiding the dropdown based on focus and clicks
+
+**Source**: `src/js/modules/dropdown.js`
+
+## Public Methods
+
+### `init()`
+
+Initializes the dropdown module by attaching event listeners to the restaurant input field.
+
+<ParamField path="none" type="void">
+  This method takes no parameters
+</ParamField>
+
+**Returns**: `void`
+
+**Usage**:
+
+```javascript
+// From src/js/app.js
+import { Dropdown } from './modules/dropdown.js';
+
+Dropdown.init();
+```
+
+**Behavior**:
+- Attaches `input` event listener to filter restaurants as user types
+- Attaches `focus` event listener to show dropdown when field is focused
+- Attaches global `click` event listener to hide dropdown when clicking outside
+
+---
+
+### `handleInput()`
+
+Handles input changes in the restaurant field and filters the dropdown options.
+
+**Returns**: `void`
+
+**Usage**:
+
+```javascript
+// From src/js/modules/dropdown.js:18
+handleInput() {
+  const input = document.getElementById('restaurant');
+  const value = input.value.toLowerCase().trim();
+
+  if (value === '') {
+    this.showAllRestaurants();
+  } else {
+    this.filterRestaurants(value);
+  }
+}
+```
+
+**Behavior**:
+- Gets current value from restaurant input
+- If empty, shows all restaurants
+- If has value, filters restaurants by name
+- Updates dropdown content in real-time
+
+---
+
+### `show()`
+
+Displays the dropdown menu with current restaurant options.
+
+**Returns**: `void`
+
+**Behavior**:
+- Calls `update()` to refresh dropdown content
+- Removes `hidden` class from dropdown element
+- Triggered on input field focus
+
+---
+
+### `hide()`
+
+Hides the dropdown menu.
+
+**Returns**: `void`
+
+**Behavior**:
+- Adds `hidden` class to dropdown element
+- Triggered when clicking outside the dropdown
+
+---
+
+### `update()`
+
+Updates the dropdown content with the current list of restaurants from DataStore.
+
+**Returns**: `void`
+
+**Usage**:
+
+```javascript
+// From src/js/modules/dropdown.js:38
+update() {
+  const restaurants = DataStore.getRestaurants();
+  const dropdown = document.getElementById('restaurantDropdown');
+
+  if (restaurants.length === 0) {
+    dropdown.innerHTML = '<div class="dropdown-item text-gray-500 text-center">No hay restaurantes guardados</div>';
+    return;
+  }
+
+  dropdown.innerHTML = restaurants.map(restaurant =>
+    `<div class="dropdown-item" data-restaurant="${Utils.escapeHtml(restaurant)}">
+      <div class="flex items-center">
+        <i class="fas fa-store mr-2 text-gray-500"></i>
+        <span>${Utils.escapeHtml(restaurant)}</span>
+      </div>
+    </div>`
+  ).join('');
+
+  // Attach click handlers to each item
+}
+```
+
+**Behavior**:
+- Fetches restaurant list from DataStore
+- Generates HTML for each restaurant option
+- Escapes HTML to prevent XSS
+- Attaches click handlers for selection
+- Shows message if no restaurants exist
+
+---
+
+### `showAllRestaurants()`
+
+Displays all available restaurants in the dropdown (no filtering).
+
+**Returns**: `void`
+
+**Behavior**:
+- Simply calls `update()` to show complete list
+- Used when input field is empty
+
+---
+
+### `filterRestaurants(searchValue)`
+
+Filters and displays restaurants matching the search term.
+
+<ParamField path="searchValue" type="string" required>
+  The search term to filter restaurants (case-insensitive)
+</ParamField>
+
+**Returns**: `void`
+
+**Usage**:
+
+```javascript
+// From src/js/modules/dropdown.js:69
+filterRestaurants(searchValue) {
+  const restaurants = DataStore.getRestaurants();
+  const filtered = restaurants.filter(restaurant =>
+    restaurant.toLowerCase().includes(searchValue)
+  );
+
+  if (filtered.length === 0) {
+    dropdown.innerHTML = '<div class="dropdown-item text-gray-500 text-center">No se encontraron restaurantes</div>';
+    return;
+  }
+
+  // Display filtered results
+}
+```
+
+**Behavior**:
+- Performs case-insensitive substring matching
+- Updates dropdown with filtered results
+- Shows "No results" message if no matches found
+
+## HTML Structure
+
+The dropdown requires this HTML structure:
+
+```html
+<div class="dropdown">
+  <input 
+    type="text" 
+    id="restaurant" 
+    required 
+    class="w-full px-4 py-3 border border-gray-300 rounded-xl"
+    placeholder="Escribe o selecciona..."
+    autocomplete="off" 
+  />
+  <div id="restaurantDropdown" class="dropdown-content hidden">
+    <!-- Dropdown items generated dynamically -->
+  </div>
+</div>
+```
+
+## Dropdown Item Structure
+
+Each dropdown item is rendered as:
+
+```html
+<div class="dropdown-item" data-restaurant="Restaurant Name">
+  <div class="flex items-center">
+    <i class="fas fa-store mr-2 text-gray-500"></i>
+    <span>Restaurant Name</span>
+  </div>
+</div>
+```
+
+## Selection Behavior
+
+When a user clicks a dropdown item:
+
+1. The restaurant name is populated into the input field
+2. The dropdown is hidden
+3. The cursor remains in the input field for further editing if needed
+
+```javascript
+// From src/js/modules/dropdown.js:56-62
+dropdown.querySelectorAll('.dropdown-item').forEach(item => {
+  item.addEventListener('click', () => {
+    const restaurant = item.dataset.restaurant;
+    document.getElementById('restaurant').value = restaurant;
+    this.hide();
+  });
+});
+```
+
+## Security
+
+The dropdown properly escapes all restaurant names to prevent XSS attacks:
+
+```javascript
+import { Utils } from './utils.js';
+
+// All restaurant names are escaped before rendering
+data-restaurant="${Utils.escapeHtml(restaurant)}"
+<span>${Utils.escapeHtml(restaurant)}</span>
+```
+
+<Warning>
+Always use `Utils.escapeHtml()` when rendering user-provided content to prevent cross-site scripting attacks.
+</Warning>
+
+## Dependencies
+
+The Dropdown module depends on:
+
+- **DataStore**: To get the list of unique restaurants (`DataStore.getRestaurants()`)
+- **Utils**: For HTML escaping (`Utils.escapeHtml()`)
+
+## Edge Cases
+
+### No Restaurants Available
+
+When no reviews exist yet:
+
+```html
+<div class="dropdown-item text-gray-500 text-center">
+  No hay restaurantes guardados
+</div>
+```
+
+### No Matching Results
+
+When search returns no results:
+
+```html
+<div class="dropdown-item text-gray-500 text-center">
+  No se encontraron restaurantes
+</div>
+```
+
+## Styling
+
+The dropdown uses CSS classes for visual presentation:
+- `.dropdown` - Container wrapper
+- `.dropdown-content` - Dropdown menu container
+- `.dropdown-item` - Individual selectable items
+- `.hidden` - Toggle visibility
+
+<Tip>
+The dropdown automatically closes when clicking outside the dropdown area, providing a standard autocomplete user experience.
+</Tip>
+
+## Usage Example
+
+```javascript
+import { Dropdown } from './modules/dropdown.js';
+import { DataStore } from './modules/datastore.js';
+
+// Initialize DataStore first (provides restaurant list)
+await DataStore.init();
+
+// Initialize dropdown
+Dropdown.init();
+
+// Now users can:
+// 1. Click the restaurant field to see all restaurants
+// 2. Type to filter the list
+// 3. Click a restaurant to select it
+// 4. Or type a new restaurant name
+```
+
+## Related Modules
+
+- [DataStore](/api/datastore) - Provides restaurant list
+- [Utils](/api/utils) - HTML escaping utility
+- [Form](/api/form) - Uses restaurant input value

@@ -1,0 +1,348 @@
+---
+title: Utils Module
+description: API reference for the Utils module - utility functions for common operations
+---
+
+# Utils Module
+
+The **Utils** module provides a collection of utility functions used throughout the application. These functions handle common operations like date formatting, HTML escaping, and rating calculations.
+
+## Overview
+
+The Utils module provides:
+- Average rating calculation
+- Date formatting and parsing
+- HTML escaping for security
+- Reusable utility functions
+
+**Source**: `src/js/modules/utils.js`
+
+## Public Methods
+
+### `calculateAverageRating(review)`
+
+Calculates the average rating from all reviewers for a given review.
+
+<ParamField path="review" type="object" required>
+  The review object containing reviewer data
+</ParamField>
+
+**Returns**: `string` - Average rating rounded to 1 decimal place
+
+**Usage**:
+
+```javascript
+// From src/js/modules/utils.js:2-6
+calculateAverageRating(review) {
+  const ratings = Object.values(review.reviewers).map(r => r.rating);
+  const sum = ratings.reduce((a, b) => a + b, 0);
+  return (sum / ratings.length).toFixed(1);
+}
+```
+
+**Example**:
+
+```javascript
+import { Utils } from './modules/utils.js';
+
+const review = {
+  restaurant: "El Emperador",
+  dish: "Pizza",
+  reviewers: {
+    gian: { rating: 9, review: "Excelente!" },
+    yami: { rating: 8, review: "Muy buena" }
+  }
+};
+
+const average = Utils.calculateAverageRating(review);
+console.log(average); // "8.5"
+```
+
+**Behavior**:
+- Extracts all rating values from the `reviewers` object
+- Calculates the arithmetic mean
+- Returns a string formatted to 1 decimal place (e.g., "8.5")
+- Works with any number of reviewers (1, 2, or more)
+
+**Used by**:
+- `UI.renderReviews()` - Display average on review cards
+- `Stats.getBestDish()` - Find highest-rated dish
+- `Stats.getWorstDish()` - Find lowest-rated dish
+
+---
+
+### `formatDate(date)`
+
+Formats a date object into Spanish locale format (DD/MM/YYYY).
+
+<ParamField path="date" type="Date">
+  Optional Date object to format. If not provided, uses current date.
+</ParamField>
+
+**Returns**: `string` - Formatted date in DD/MM/YYYY format
+
+**Usage**:
+
+```javascript
+// From src/js/modules/utils.js:8-11
+formatDate(date) {
+  const d = date ? new Date(date) : new Date();
+  return d.toLocaleDateString('es-ES');
+}
+```
+
+**Examples**:
+
+```javascript
+import { Utils } from './modules/utils.js';
+
+// Format current date
+const today = Utils.formatDate();
+console.log(today); // "05/03/2026"
+
+// Format specific date
+const visitDate = new Date('2026-03-01');
+const formatted = Utils.formatDate(visitDate);
+console.log(formatted); // "01/03/2026"
+
+// Format from string
+const dateString = '2026-12-25';
+const christmas = Utils.formatDate(new Date(dateString));
+console.log(christmas); // "25/12/2026"
+```
+
+**Locale**:
+- Uses `'es-ES'` locale for Spanish date formatting
+- Produces DD/MM/YYYY format (day/month/year)
+- Different from US format MM/DD/YYYY
+
+**Used by**:
+- `Form.handleSubmit()` - Format visit date before saving
+- Review cards - Display formatted dates
+
+---
+
+### `escapeHtml(text)`
+
+Escapes HTML special characters to prevent cross-site scripting (XSS) attacks.
+
+<ParamField path="text" type="string" required>
+  The text to escape
+</ParamField>
+
+**Returns**: `string` - HTML-safe escaped text
+
+**Usage**:
+
+```javascript
+// From src/js/modules/utils.js:13-17
+escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+```
+
+**Examples**:
+
+```javascript
+import { Utils } from './modules/utils.js';
+
+// Escape HTML tags
+const unsafe = '<script>alert("XSS")</script>';
+const safe = Utils.escapeHtml(unsafe);
+console.log(safe); // "&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;"
+
+// Escape quotes
+const text = 'O\'Reilly\'s "Best" Restaurant';
+const escaped = Utils.escapeHtml(text);
+console.log(escaped); // "O'Reilly's &quot;Best&quot; Restaurant"
+
+// Safe for HTML attributes
+const restaurant = 'Joe\'s Café & Grill';
+const html = `<div data-name="${Utils.escapeHtml(restaurant)}">...</div>`;
+// Result: <div data-name="Joe's Café &amp; Grill">...</div>
+```
+
+**Escaped Characters**:
+- `<` → `&lt;`
+- `>` → `&gt;`
+- `&` → `&amp;`
+- `"` → `&quot;`
+- `'` → `&#39;`
+
+**Security**:
+
+<Warning>
+Always use `escapeHtml()` when inserting user-provided content into HTML to prevent XSS attacks.
+</Warning>
+
+**Used by**:
+- `UI.renderReviews()` - Escape restaurant and dish names in card HTML
+- `Filters.update()` - Escape restaurant names in filter buttons
+- `Dropdown.update()` - Escape restaurant names in dropdown items
+- Any code that renders user input in HTML
+
+---
+
+### `parseDate(dateString)`
+
+Parses a date string in DD/MM/YYYY format and returns a Date object.
+
+<ParamField path="dateString" type="string" required>
+  Date string in DD/MM/YYYY format (Spanish format)
+</ParamField>
+
+**Returns**: `Date` - JavaScript Date object
+
+**Usage**:
+
+```javascript
+// From src/js/modules/utils.js:19-22
+parseDate(dateString) {
+  const parts = dateString.split('/');
+  return new Date(parts[2], parts[1] - 1, parts[0]);
+}
+```
+
+**Examples**:
+
+```javascript
+import { Utils } from './modules/utils.js';
+
+// Parse Spanish format date
+const dateStr = '05/03/2026';  // 5th March 2026
+const date = Utils.parseDate(dateStr);
+
+console.log(date.getFullYear());  // 2026
+console.log(date.getMonth());     // 2 (March, zero-indexed)
+console.log(date.getDate());      // 5
+
+// Use for date comparisons
+const review1Date = Utils.parseDate('01/03/2026');
+const review2Date = Utils.parseDate('15/03/2026');
+if (review2Date > review1Date) {
+  console.log('Review 2 is more recent');
+}
+```
+
+**Format**:
+- Input format: `DD/MM/YYYY`
+- Example: `"25/12/2026"` → December 25, 2026
+
+**Month Indexing**:
+<Note>
+JavaScript months are zero-indexed (0-11), so the function subtracts 1 from the month value.
+</Note>
+
+**Used by**:
+- `Stats.getRecentBest()` - Parse review dates to find recent reviews (last 30 days)
+- Any code that needs to compare or manipulate dates stored as strings
+
+## Complete API Reference
+
+| Method | Parameters | Returns | Description |
+|--------|------------|---------|-------------|
+| `calculateAverageRating(review)` | `review: object` | `string` | Calculate average rating from all reviewers |
+| `formatDate(date)` | `date?: Date` | `string` | Format date to DD/MM/YYYY (Spanish) |
+| `escapeHtml(text)` | `text: string` | `string` | Escape HTML to prevent XSS |
+| `parseDate(dateString)` | `dateString: string` | `Date` | Parse DD/MM/YYYY to Date object |
+
+## Dependencies
+
+The Utils module has **no dependencies**. It's a pure utility module that can be used anywhere.
+
+## Usage Patterns
+
+### Rating Display
+
+```javascript
+// Display average rating on review card
+const avgRating = Utils.calculateAverageRating(review);
+cardHTML += `<span class="rating">${avgRating}/10</span>`;
+```
+
+### Date Handling
+
+```javascript
+// Save review with formatted date
+const review = {
+  restaurant: "El Emperador",
+  dish: "Pizza",
+  date: Utils.formatDate(new Date()),  // Current date
+  // ...
+};
+
+// Later, parse for comparison
+const reviewDate = Utils.parseDate(review.date);
+const thirtyDaysAgo = new Date();
+thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+if (reviewDate > thirtyDaysAgo) {
+  console.log('Recent review');
+}
+```
+
+### Safe HTML Rendering
+
+```javascript
+// Safe rendering of user input
+const restaurantName = review.restaurant;
+const dishName = review.dish;
+
+const html = `
+  <div class="review-card">
+    <h3>${Utils.escapeHtml(restaurantName)}</h3>
+    <p>${Utils.escapeHtml(dishName)}</p>
+  </div>
+`;
+```
+
+## Best Practices
+
+<Tip>
+**Always escape user content**: Any user-provided data (restaurant names, dish names, reviews) should be escaped with `Utils.escapeHtml()` before rendering in HTML.
+</Tip>
+
+<Tip>
+**Use formatDate for consistency**: Always use `Utils.formatDate()` to ensure consistent date formatting across the application.
+</Tip>
+
+<Tip>
+**Parse dates for comparisons**: When comparing dates stored as strings, use `Utils.parseDate()` to convert them to Date objects first.
+</Tip>
+
+## Testing Examples
+
+```javascript
+// Test calculateAverageRating
+const testReview = {
+  reviewers: {
+    gian: { rating: 10, review: "Perfect!" },
+    yami: { rating: 8, review: "Great" }
+  }
+};
+console.assert(Utils.calculateAverageRating(testReview) === "9.0");
+
+// Test formatDate
+const testDate = new Date('2026-03-05');
+console.assert(Utils.formatDate(testDate) === "05/03/2026");
+
+// Test escapeHtml
+console.assert(Utils.escapeHtml('<script>') === '&lt;script&gt;');
+
+// Test parseDate
+const parsed = Utils.parseDate('05/03/2026');
+console.assert(parsed.getFullYear() === 2026);
+console.assert(parsed.getMonth() === 2);  // March (zero-indexed)
+console.assert(parsed.getDate() === 5);
+```
+
+## Related Modules
+
+All modules use Utils:
+- [UI](/api/ui) - escapeHtml, calculateAverageRating
+- [Form](/api/form) - formatDate
+- [Filters](/api/filters) - escapeHtml
+- [Dropdown](/api/dropdown) - escapeHtml
+- [Stats](/api/stats) - calculateAverageRating, parseDate
